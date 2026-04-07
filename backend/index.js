@@ -3,7 +3,7 @@ const app = express();
 const cors = require("cors");
 
 const mongoose = require("mongoose");
-const port = process.env.PORT || 8000;
+const port = process.env.PORT || 8001;
 require('dotenv').config()
 
 // Strict DB URL as required (do not rely on env variations)
@@ -23,11 +23,13 @@ const bookRoutes = require('./src/books/book.route');
 const orderRoutes = require("./src/orders/order.route")
 const userRoutes =  require("./src/users/user.route")
 const adminRoutes = require("./src/stats/admin.stats")
+const aiRoutes = require("./src/ai/ai.route")
 
 app.use("/api/books", bookRoutes)
 app.use("/api/orders", orderRoutes)
 app.use("/api/auth", userRoutes)
 app.use("/api/admin", adminRoutes)
+app.use("/api/ai", aiRoutes)
 
 async function main() {
   await mongoose.connect(DB_URL);

@@ -1,12 +1,15 @@
 import React from 'react'
-import { useGetOrderByEmailQuery } from '../../redux/features/orders/ordersApi'
+import { useGetOrderByUserIdQuery } from '../../redux/features/orders/ordersApi'
 import { useAuth } from '../../context/AuthContext';
 
 const OrderPage = () => {
     const { currentUser} = useAuth()
 
+    if (!currentUser?.id) return <div>Please login to view your orders.</div>;
 
-    const { data: orders = [], isLoading, isError } = useGetOrderByEmailQuery(currentUser.email);
+    const { data: orders = [], isLoading, isError } = useGetOrderByUserIdQuery(currentUser?.id, {
+        skip: !currentUser?.id
+    });
     if (isLoading) return <div>Loading...</div>
     if (isError) return <div>Error geting orders data</div>
     return (
@@ -25,10 +28,10 @@ const OrderPage = () => {
                                 <p className="text-gray-600">Total Price: Rs. {order.totalPrice}</p>
                                 <h3 className="font-semibold mt-2">Address:</h3>
                                 <p> {order.address.city}, {order.address.state}, {order.address.country}, {order.address.zipcode}</p>
-                                <h3 className="font-semibold mt-2">Products Id:</h3>
+                                <h3 className="font-semibold mt-2">Items:</h3>
                                 <ul>
-                                    {order.productIds.map((productId) => (
-                                        <li key={productId}>{productId}</li>
+                                    {(order.items || []).map((item) => (
+                                        <li key={`${item.productId}-${item.title}`}>{item.title} x {item.quantity}</li>
                                     ))}
                                 </ul>
                             </div>

@@ -1,12 +1,13 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { HiMiniBars3CenterLeft, HiOutlineHeart, HiOutlineShoppingCart } from "react-icons/hi2";
-import { IoSearchOutline } from "react-icons/io5";
+import { Link } from "react-router-dom";
+import { HiOutlineHeart, HiOutlineShoppingCart } from "react-icons/hi2";
 import { HiOutlineUser } from "react-icons/hi";
+import { BsBook } from "react-icons/bs";
 
 import avatarImg from "../assets/avatar.png"
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "../context/AuthContext";
+import { hydrateWishlist } from "../redux/features/wishlist/wishlistSlice";
 
 const navigation = [
     {name: "Dashboard", href:"/user-dashboard"},
@@ -18,10 +19,8 @@ const navigation = [
 const Navbar = () => {
 
     const  [isDropdownOpen, setIsDropdownOpen] = useState(false)
-    const [searchTerm, setSearchTerm] = useState('');
     const cartItems = useSelector(state => state.cart.cartItems);
-    const navigate = useNavigate();
-    const location = useLocation();
+    const dispatch = useDispatch();
    
     const {currentUser, logout} = useAuth()
     
@@ -32,42 +31,18 @@ const Navbar = () => {
     const token = localStorage.getItem('token');
 
     useEffect(() => {
-        const params = new URLSearchParams(location.search);
-        setSearchTerm(params.get('search') || '');
-    }, [location.search]);
-
-    const handleSearchSubmit = (e) => {
-        e.preventDefault();
-        const value = searchTerm.trim();
-        if (!value) {
-            navigate('/');
-            return;
-        }
-        navigate(`/?search=${encodeURIComponent(value)}`);
-    };
+        dispatch(hydrateWishlist(currentUser?.id || null));
+    }, [currentUser?.id, dispatch]);
   
     return (
-        <header className="max-w-screen-2xl mx-auto px-4 py-6">
-            <nav className="flex justify-between items-center">
+        <header className="bg-gradient-to-r from-violet-50 via-indigo-50 to-purple-50 border-b border-violet-100 shadow-sm">
+            <nav className="max-w-screen-2xl mx-auto px-4 py-4 flex justify-between items-center">
                 {/* left side */}
-                <div className="flex items-center md:gap-16 gap-4">
-                    <Link to="/">
-                        <HiMiniBars3CenterLeft className="size-6" />
+                <div className="flex items-center gap-4">
+                    <Link to="/" className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/80 border border-violet-100 shadow-sm hover:shadow transition-shadow">
+                        <BsBook className="size-5 text-violet-700" />
+                        <span className="font-extrabold text-sm sm:text-base tracking-wide text-violet-900">BOOKSDEN</span>
                     </Link>
-
-                    {/* search input */}
-                    <form onSubmit={handleSearchSubmit} className="relative sm:w-72 w-40 space-x-2">
-
-                        <IoSearchOutline className="absolute inline-block left-3 inset-y-2 text-muted" />
-
-                        <input
-                            type="text"
-                            placeholder="Search books..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="bg-surface border border-border text-text placeholder:text-muted w-full py-1 md:px-8 px-6 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/40"
-                        />
-                    </form>
                 </div>
 
 
@@ -77,17 +52,17 @@ const Navbar = () => {
                         {
                             currentUser ? <>
                             <button onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
-                                <img src={avatarImg} alt="" className={`size-7 rounded-full ${currentUser ? 'ring-2 ring-blue-500' : ''}`} />
+                                <img src={avatarImg} alt="" className={`size-8 rounded-full ${currentUser ? 'ring-2 ring-violet-500' : ''}`} />
                             </button>
                             {/* show dropdowns */}
                             {
                                 isDropdownOpen && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-white shadow-lg rounded-md z-40">
+                                    <div className="absolute right-0 mt-2 w-52 bg-white shadow-xl rounded-xl z-40 border border-violet-100">
                                         <ul className="py-2">
                                             {
                                                 navigation.map((item) => (
                                                     <li key={item.name} onClick={() => setIsDropdownOpen(false)}>
-                                                        <Link to={item.href} className="block px-4 py-2 text-sm hover:bg-gray-100">
+                                                        <Link to={item.href} className="block px-4 py-2 text-sm hover:bg-violet-50">
                                                             {item.name}
                                                         </Link>
                                                     </li>
@@ -96,27 +71,27 @@ const Navbar = () => {
                                             <li>
                                                 <button
                                                 onClick={handleLogOut}
-                                                className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100">Logout</button>
+                                                className="block w-full text-left px-4 py-2 text-sm hover:bg-violet-50">Logout</button>
                                             </li>
                                         </ul>
                                     </div>
                                 )
                             }
                             </> : token ? (
-                                <Link to="/dashboard" className="inline-flex items-center">
+                                <Link to="/dashboard" className="inline-flex items-center p-2 rounded-full bg-white/80 border border-violet-100 hover:bg-white">
                                     <HiOutlineUser className="size-6" />
                                 </Link>
                             ) : (
-                                <Link to="/login"> <HiOutlineUser className="size-6" /></Link>
+                                <Link to="/login" className="inline-flex items-center p-2 rounded-full bg-white/80 border border-violet-100 hover:bg-white"> <HiOutlineUser className="size-6" /></Link>
                             )
                         }
                     </div>
                     
-                    <Link to="/favorites" className="hidden sm:block" aria-label="Favorites">
+                    <Link to="/favorites" className="hidden sm:block p-2 rounded-full bg-white/80 border border-violet-100 hover:bg-white" aria-label="Favorites">
                         <HiOutlineHeart className="size-6" />
                     </Link>
 
-                    <Link to="/cart" className="bg-primary text-bg p-1 sm:px-6 px-2 flex items-center rounded-sm hover:bg-secondary transition-colors">
+                    <Link to="/cart" className="bg-violet-600 text-white p-2 sm:px-5 px-3 flex items-center rounded-full hover:bg-violet-700 transition-colors shadow-sm">
                         <HiOutlineShoppingCart className='' />
                         {
                             cartItems.length > 0 ?  <span className="text-sm font-semibold sm:ml-1">{cartItems.length}</span> :  <span className="text-sm font-semibold sm:ml-1">0</span>

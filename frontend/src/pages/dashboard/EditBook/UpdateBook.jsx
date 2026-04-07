@@ -6,8 +6,6 @@ import { useParams } from 'react-router-dom';
 import { useFetchBookByIdQuery, useUpdateBookMutation } from '../../../redux/features/books/booksApi';
 import Loading from '../../../components/Loading';
 import Swal from 'sweetalert2';
-import axios from 'axios';
-import getBaseUrl from '../../../utils/baseURL';
 
 const UpdateBook = () => {
   const MIN_PRICE = 400;
@@ -24,6 +22,7 @@ const UpdateBook = () => {
       setValue('seoTitle', bookData.seoTitle || '');
       setValue('metaDescription', bookData.metaDescription || '');
       setValue('keywords', bookData.keywords || '');
+      setValue('slug', bookData.slug || '');
       setValue('category', bookData?.category);
       setValue('trending', bookData.trending);
       setValue('oldPrice', bookData.oldPrice);
@@ -46,6 +45,7 @@ const UpdateBook = () => {
       seoTitle: data.seoTitle || '',
       metaDescription: data.metaDescription || '',
       keywords: data.keywords || '',
+      slug: data.slug || '',
       category: data.category,
       trending: data.trending,
       oldPrice,
@@ -53,12 +53,7 @@ const UpdateBook = () => {
       coverImage: data.coverImage || bookData.coverImage,
     };
     try {
-      await axios.put(`${getBaseUrl()}/api/books/edit/${id}`, updateBookData, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
+      await updateBook({ id, ...updateBookData }).unwrap();
       Swal.fire({
         title: "Book Updated",
         text: "Your book is updated successfully!",
@@ -70,7 +65,6 @@ const UpdateBook = () => {
       });
       await refetch()
     } catch (error) {
-      console.log("Failed to update book.");
       alert("Failed to update book.");
     }
   }
@@ -114,6 +108,13 @@ const UpdateBook = () => {
           label="Keywords"
           name="keywords"
           placeholder="keyword1, keyword2, keyword3"
+          register={register}
+        />
+
+        <InputField
+          label="Slug"
+          name="slug"
+          placeholder="book-title-clean-url"
           register={register}
         />
 

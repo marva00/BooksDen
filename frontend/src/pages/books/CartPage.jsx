@@ -2,13 +2,13 @@ import React from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { getImgUrl } from '../../utils/getImgUrl';
-import { clearCart, removeFromCart } from '../../redux/features/cart/cartSlice';
+import { clearCart, removeFromCart, updateCartQty } from '../../redux/features/cart/cartSlice';
 
 const CartPage = () => {
     const cartItems = useSelector(state => state.cart.cartItems);
     const dispatch =  useDispatch()
 
-    const totalPrice =  cartItems.reduce((acc, item) => acc + item.newPrice, 0).toFixed(2);
+    const totalPrice =  cartItems.reduce((acc, item) => acc + (item.newPrice * (item.quantity || 1)), 0).toFixed(2);
 
     const handleRemoveFromCart = (product) => {
         dispatch(removeFromCart(product))
@@ -16,6 +16,9 @@ const CartPage = () => {
 
     const handleClearCart  = () => {
         dispatch(clearCart())
+    }
+    const handleQtyChange = (id, qty) => {
+        dispatch(updateCartQty({ id, quantity: qty }));
     }
     return (
         <>
@@ -27,7 +30,7 @@ const CartPage = () => {
                             <button
                                 type="button"
                                 onClick={handleClearCart }
-                                className="relative -m-2 py-1 px-2 bg-red-500 text-white rounded-md hover:bg-secondary transition-all duration-200  "
+                                className="relative -m-2 py-1 px-2 bg-primary text-white rounded-md hover:bg-secondary transition-all duration-200"
                             >
                                 <span className="">Clear Cart</span>
                             </button>
@@ -62,12 +65,21 @@ const CartPage = () => {
                                                             <p className="mt-1 text-sm text-gray-500 capitalize"><strong>Category: </strong>{product?.category}</p>
                                                         </div>
                                                         <div className="flex flex-1 flex-wrap items-end justify-between space-y-2 text-sm">
-                                                            <p className="text-gray-500"><strong>Qty:</strong> 1</p>
+                                                            <div className="flex items-center gap-2">
+                                                                <strong>Qty:</strong>
+                                                                <input
+                                                                    type="number"
+                                                                    min="1"
+                                                                    value={product?.quantity || 1}
+                                                                    onChange={(e) => handleQtyChange(product._id, e.target.value)}
+                                                                    className="w-16 border rounded px-2 py-1"
+                                                                />
+                                                            </div>
 
                                                             <div className="flex">
                                                                 <button
                                                                 onClick={() => handleRemoveFromCart(product)}
-                                                                type="button" className="font-medium text-indigo-600 hover:text-indigo-500">
+                                                                type="button" className="font-medium text-primary hover:text-secondary">
                                                                     Remove
                                                                 </button>
                                                             </div>
@@ -97,22 +109,15 @@ const CartPage = () => {
                     <div className="mt-6">
                         <Link
                             to="/checkout"
-                            className="flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-indigo-700"
+                            className="flex items-center justify-center rounded-md border border-transparent bg-primary px-6 py-3 text-base font-medium text-white shadow-sm hover:bg-secondary"
                         >
-                            Checkout
+                            Proceed to Checkout
                         </Link>
                     </div>
                     <div className="mt-6 flex justify-center text-center text-sm text-gray-500">
-                        <Link to="/">
-                            or
-                            <button
-                                type="button"
-
-                                className="font-medium text-indigo-600 hover:text-indigo-500 ml-1"
-                            >
-                                Continue Shopping
-                                <span aria-hidden="true"> &rarr;</span>
-                            </button>
+                        <Link to="/" className="font-medium text-muted hover:text-text underline-offset-2 hover:underline ml-1">
+                            Continue Shopping
+                            <span aria-hidden="true"> &rarr;</span>
                         </Link>
                     </div>
                 </div>

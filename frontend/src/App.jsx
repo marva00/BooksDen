@@ -6,6 +6,7 @@ import Footer from './components/Footer'
 import { AuthProvide } from './context/AuthContext'
 import { useEffect, useState } from 'react'
 import Loading from './components/Loading'
+import ChatbotWidget from './components/ai/ChatbotWidget'
 
 function App() {
 
@@ -34,6 +35,7 @@ function App() {
           <Outlet />
         </main>
         <Footer />
+        <ChatbotWidget />
       </AuthProvide>
 
     </>

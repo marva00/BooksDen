@@ -1,7 +1,7 @@
 const mongoose =  require('mongoose');
 
-const bookSchema = new mongoose.Schema({
-    title: {
+const productSchema = new mongoose.Schema({
+    name: {
         type: String,
         required: true,
     },
@@ -9,44 +9,43 @@ const bookSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    price: {
+        type: Number,
+        required: true,
+    },
     category:  {
         type: String,
         required: true,
     },
-    trending: {
-        type: Boolean,
-        required: true,
-    },
-    coverImage: {
-        type: String,
-        required: true,
-    },
-    oldPrice: {
+    stock: {
         type: Number,
         required: true,
+        default: 0,
     },
-    newPrice: {
-        type: Number,
+    images: [{
+        type: String,
         required: true,
-    },
-    seoTitle: {
-        type: String,
-        default: "",
-    },
-    metaDescription: {
-        type: String,
-        default: "",
-    },
-    keywords: {
-        type: String,
-        default: "",
-    },
+    }],
     slug: {
         type: String,
         required: true,
         unique: true,
         index: true,
         sparse: true,
+    },
+    seo: {
+        metaTitle: {
+            type: String,
+            default: "",
+        },
+        metaDescription: {
+            type: String,
+            default: "",
+        },
+        keywords: {
+            type: String,
+            default: "",
+        },
     },
     createdAt: {
         type: Date,
@@ -56,6 +55,6 @@ const bookSchema = new mongoose.Schema({
     timestamps: true,
   });
 
-  const Book = mongoose.model('Book', bookSchema);
+  const Product = mongoose.model('Product', productSchema);
 
-  module.exports = Book;
+  module.exports = Product;

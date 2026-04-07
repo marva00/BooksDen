@@ -1,0 +1,14 @@
+[
+  {
+    "keywords": ["delivery", "ship", "shipping time", "arrival"],
+    "answer": "Standard delivery usually takes 3-7 business days depending on your location."
+  },
+  {
+    "keywords": ["fee", "cost", "shipping charge"],
+    "answer": "Shipping cost is calculated at checkout based on address and order size."
+  },
+  {
+    "keywords": ["return", "refund", "exchange"],
+    "answer": "Eligible items can be returned within the return window. Refunds are processed after quality inspection."
+  }
+]

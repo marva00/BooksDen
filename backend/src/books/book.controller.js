@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const Book = require("./book.model");
+const Product = require("./book.model");
 const MIN_PRICE = 400;
 const MAX_PRICE = 900;
 const slugify = (value = "") =>
@@ -25,13 +25,13 @@ const isValidPriceRange = (oldPrice, newPrice) => {
     );
 };
 
-const generateUniqueSlug = async (title, excludeId = null) => {
-    const baseSlug = slugify(title) || "book";
+const generateUniqueSlug = async (name, excludeId = null) => {
+    const baseSlug = slugify(name) || "product";
     let candidate = baseSlug;
     let counter = 1;
 
     while (true) {
-        const existing = await Book.findOne({ slug: candidate });
+        const existing = await Product.findOne({ slug: candidate });
         if (!existing || (excludeId && existing._id.toString() === excludeId.toString())) {
             return candidate;
         }
@@ -40,127 +40,124 @@ const generateUniqueSlug = async (title, excludeId = null) => {
     }
 };
 
-const ensureBookSlug = async (bookDoc) => {
-    if (!bookDoc) return bookDoc;
-    if (bookDoc.slug && typeof bookDoc.slug === "string" && bookDoc.slug.trim()) {
-        return bookDoc;
+const generateUniqueSlugFromInput = async (slugInput, nameFallback, excludeId = null) => {
+    const base = slugify(slugInput || nameFallback || "");
+    return generateUniqueSlug(base || "product", excludeId);
+};
+
+const ensureProductSlug = async (productDoc) => {
+    if (!productDoc) return productDoc;
+    if (productDoc.slug && typeof productDoc.slug === "string" && productDoc.slug.trim()) {
+        return productDoc;
     }
-    const uniqueSlug = await generateUniqueSlug(bookDoc.title || "book", bookDoc._id);
-    bookDoc.slug = uniqueSlug;
-    await bookDoc.save();
-    return bookDoc;
+    const uniqueSlug = await generateUniqueSlug(productDoc.name || "product", productDoc._id);
+    productDoc.slug = uniqueSlug;
+    await productDoc.save();
+    return productDoc;
 };
 
-const createBookFromBody = async (body) => {
-    const slug = await generateUniqueSlug(body?.title || "");
-    const newBook = await Book({ ...body, slug });
-    await newBook.save();
-    return newBook;
+const createProductFromBody = async (body) => {
+    const slug = await generateUniqueSlugFromInput(body?.slug, body?.name);
+    const newProduct = new Product({ ...body, slug });
+    await newProduct.save();
+    return newProduct;
 };
 
-const postABook = async (req, res) => {
+const postAProduct = async (req, res) => {
     try {
-        if (!isValidPriceRange(req.body?.oldPrice, req.body?.newPrice)) {
-            return res.status(400).send({ message: `Book prices must be between Rs. ${MIN_PRICE} and Rs. ${MAX_PRICE}` });
-        }
-        const newBook = await createBookFromBody(req.body);
-        return res.status(200).send({ message: "Book posted successfully", book: newBook });
+        const newProduct = await createProductFromBody(req.body);
+        return res.status(200).send({ message: "Product posted successfully", product: newProduct });
     } catch (error) {
-        console.error("Error creating book", error);
-        return res.status(500).send({ message: "Failed to create book" });
+        console.error("Error creating product", error);
+        return res.status(500).send({ message: "Failed to create product" });
     }
 }
 
-// get all books
-const getAllBooks =  async (req, res) => {
+// get all products
+const getAllProducts =  async (req, res) => {
     try {
-        const books = await Book.find().sort({ createdAt: -1});
-        for (const book of books) {
-            await ensureBookSlug(book);
+        const products = await Product.find().sort({ createdAt: -1});
+        for (const product of products) {
+            await ensureProductSlug(product);
         }
-        return res.status(200).send(books)
+        return res.status(200).send(products)
         
     } catch (error) {
-        console.error("Error fetching books", error);
-        return res.status(500).send({message: "Failed to fetch books"})
+        console.error("Error fetching products", error);
+        return res.status(500).send({message: "Failed to fetch products"})
     }
 }
 
-const getSingleBook = async (req, res) => {
+const getSingleProduct = async (req, res) => {
     try {
         const {id} = req.params;
-        const book =  await Book.findById(id);
-        if(!book){
-            return res.status(404).send({message: "Book not Found!"})
+        const product =  await Product.findById(id);
+        if(!product){
+            return res.status(404).send({message: "Product not Found!"})
         }
-        await ensureBookSlug(book);
-        return res.status(200).send(book)
+        await ensureProductSlug(product);
+        return res.status(200).send(product)
         
     } catch (error) {
-        console.error("Error fetching book", error);
-        return res.status(500).send({message: "Failed to fetch book"})
+        console.error("Error fetching product", error);
+        return res.status(500).send({message: "Failed to fetch product"})
     }
 
 }
 
-const getSingleBookBySlug = async (req, res) => {
+const getSingleProductBySlug = async (req, res) => {
     try {
         const { slug } = req.params;
         const bySlugOrId = [{ slug }];
         if (mongoose.Types.ObjectId.isValid(slug)) {
             bySlugOrId.push({ _id: slug });
         }
-        const book = await Book.findOne({ $or: bySlugOrId });
-        if (!book) {
-            return res.status(404).send({ message: "Book not Found!" });
+        const product = await Product.findOne({ $or: bySlugOrId });
+        if (!product) {
+            return res.status(404).send({ message: "Product not Found!" });
         }
-        await ensureBookSlug(book);
-        return res.status(200).send(book);
+        await ensureProductSlug(product);
+        return res.status(200).send(product);
     } catch (error) {
-        console.error("Error fetching book by slug", error);
-        return res.status(500).send({ message: "Failed to fetch book" });
+        console.error("Error fetching product by slug", error);
+        return res.status(500).send({ message: "Failed to fetch product" });
     }
 }
 
-// update book data
-const UpdateBook = async (req, res) => {
+// update product data
+const UpdateProduct = async (req, res) => {
     try {
         const {id} = req.params;
-        if (!isValidPriceRange(req.body?.oldPrice, req.body?.newPrice)) {
-            return res.status(400).send({ message: `Book prices must be between Rs. ${MIN_PRICE} and Rs. ${MAX_PRICE}` });
-        }
         const updatePayload = { ...req.body };
-        if (typeof req.body?.title === "string" && req.body.title.trim()) {
-            updatePayload.slug = await generateUniqueSlug(req.body.title, id);
-        }
-        const updatedBook =  await Book.findByIdAndUpdate(id, updatePayload, {new: true});
-        if(!updatedBook) {
-            return res.status(404).send({message: "Book is not Found!"})
+        updatePayload.slug = await generateUniqueSlugFromInput(req.body?.slug, req.body?.name, id);
+        const updatedProduct =  await Product.findByIdAndUpdate(id, updatePayload, {new: true});
+        if(!updatedProduct) {
+            return res.status(404).send({message: "Product is not Found!"})
         }
         return res.status(200).send({
-            message: "Book updated successfully",
-            book: updatedBook
+            message: "Product updated successfully",
+            product: updatedProduct
         })
     } catch (error) {
-        console.error("Error updating a book", error);
-        return res.status(500).send({message: "Failed to update a book"})
+        console.error("Error updating a product", error);
+        return res.status(500).send({message: "Failed to update a product"})
     }
 }
 
-const deleteABook = async (req, res) => {
+const deleteAProduct = async (req, res) => {
     try {
         const {id} = req.params;
-        const deletedBook =  await Book.findByIdAndDelete(id);
-        if(!deletedBook) {
-            return res.status(404).send({message: "Book is not Found!"})
+        const deletedProduct = await Product.findByIdAndDelete(id);
+        if(!deletedProduct) {
+            return res.status(404).send({message: "Product is not found!"})
         }
         return res.status(200).send({
-            message: "Book deleted successfully",
-            book: deletedBook
+            message: "Product deleted successfully",
+            product: deletedProduct
         })
     } catch (error) {
-        console.error("Error deleting a book", error);
-        return res.status(500).send({message: "Failed to delete a book"})
+        console.error("Error deleting a product", error);
+        return res.status(500).send({message: "Failed to delete a product"})
     }
 };
 
@@ -169,111 +166,183 @@ const seedDummyBooks = async (req, res) => {
     try {
         const seedBooks = [
             {
-                title: "Business Foundations 101",
+                name: "Business Foundations 101",
                 description: "A practical introduction to core business concepts, strategy, and decision-making frameworks.",
+                price: 18,
                 category: "business",
-                coverImage: "book-1.png",
-                oldPrice: 25,
-                newPrice: 18,
+                stock: 50,
+                images: ["book-1.png"],
                 trending: true
             },
             {
-                title: "Technology Trends: 2026 Edition",
+                name: "Technology Trends: 2026 Edition",
                 description: "Explore the most impactful technology trends shaping product development, AI adoption, and modern systems.",
+                price: 33,
                 category: "technology",
-                coverImage: "book-2.png",
-                oldPrice: 45,
-                newPrice: 33,
+                stock: 30,
+                images: ["book-2.png"],
                 trending: true
             },
             {
-                title: "Fictional Realms: The Atlas of Stories",
+                name: "Fictional Realms: The Atlas of Stories",
                 description: "A curated journey through genres and themes, designed to inspire readers and writers alike.",
+                price: 14,
                 category: "fiction",
-                coverImage: "book-3.png",
-                oldPrice: 20,
-                newPrice: 14,
+                stock: 40,
+                images: ["book-3.png"],
                 trending: false
             },
             {
-                title: "Horror Nights: Tales for the Brave",
+                name: "Horror Nights: Tales for the Brave",
                 description: "Short horror narratives with eerie pacing and unforgettable twists.",
+                price: 16,
                 category: "horror",
-                coverImage: "book-4.png",
-                oldPrice: 22,
-                newPrice: 16,
+                stock: 25,
+                images: ["book-4.png"],
                 trending: true
             },
             {
-                title: "Adventure Compass: Journeys Beyond",
+                name: "Adventure Compass: Journeys Beyond",
                 description: "Learn how to plan adventures, build resilience, and embrace the unknown with confidence.",
+                price: 22,
                 category: "adventure",
-                coverImage: "book-5.png",
-                oldPrice: 30,
-                newPrice: 22,
+                stock: 35,
+                images: ["book-5.png"],
                 trending: false
             },
             {
-                title: "Business Analytics Playbook",
+                name: "Business Analytics Playbook",
                 description: "Turn data into decisions with clear examples of dashboards, metrics, and experimentation.",
+                price: 28,
                 category: "business",
-                coverImage: "book-6.png",
-                oldPrice: 40,
-                newPrice: 28,
+                stock: 45,
+                images: ["book-6.png"],
                 trending: false
             },
             {
-                title: "Modern Software Architecture",
+                name: "Modern Software Architecture",
                 description: "Understand scalable architecture patterns for web apps, services, and distributed systems.",
+                price: 39,
                 category: "technology",
-                coverImage: "book-7.png",
-                oldPrice: 55,
-                newPrice: 39,
+                stock: 20,
+                images: ["book-7.png"],
                 trending: true
             },
             {
-                title: "Fiction for Focus: Character & Conflict",
+                name: "Fiction for Focus: Character & Conflict",
                 description: "A writing guide to craft compelling characters and keep tension alive throughout the story.",
+                price: 12,
                 category: "fiction",
-                coverImage: "book-8.png",
-                oldPrice: 18,
-                newPrice: 12,
+                stock: 60,
+                images: ["book-8.png"],
                 trending: false
             },
             {
-                title: "Horror Craft: Atmosphere Techniques",
+                name: "Horror Craft: Atmosphere Techniques",
                 description: "Learn how to build dread through language, structure, and pacing - without relying on cliches.",
+                price: 17,
                 category: "horror",
-                coverImage: "book-9.png",
-                oldPrice: 24,
-                newPrice: 17,
+                stock: 30,
+                images: ["book-9.png"],
                 trending: true
             },
             {
-                title: "Adventure Skills & Safety",
+                name: "Adventure Skills & Safety",
                 description: "Essential outdoor skills, risk planning, and preparation checklists for memorable trips.",
+                price: 25,
                 category: "adventure",
-                coverImage: "book-10.png",
-                oldPrice: 36,
-                newPrice: 25,
+                stock: 40,
+                images: ["book-10.png"],
                 trending: false
             },
             {
-                title: "Startup Strategy Sprint",
+                name: "Startup Strategy Sprint",
                 description: "A step-by-step guide to validating ideas, finding product-market fit, and scaling sustainably.",
+                price: 34,
                 category: "business",
-                coverImage: "book-11.png",
-                oldPrice: 48,
-                newPrice: 34,
+                stock: 25,
+                images: ["book-11.png"],
                 trending: true
             },
             {
-                title: "Tech Careers: Building Your Path",
+                name: "Tech Careers: Building Your Path",
                 description: "A practical roadmap for improving skills, building portfolios, and advancing in tech.",
+                price: 26,
                 category: "technology",
-                coverImage: "book-12.png",
-                oldPrice: 38,
-                newPrice: 26,
+                stock: 50,
+                images: ["book-12.png"],
+                trending: false
+            },
+            {
+                name: "Mystery Novels: Classic Whodunits",
+                description: "Timeless mystery stories with intricate plots and surprising endings.",
+                price: 20,
+                category: "mystery",
+                stock: 35,
+                images: ["book-13.png"],
+                trending: true
+            },
+            {
+                name: "Romance Stories: Heartfelt Tales",
+                description: "Emotional journeys of love, loss, and redemption.",
+                price: 15,
+                category: "romance",
+                stock: 40,
+                images: ["book-14.png"],
+                trending: false
+            },
+            {
+                name: "Science Fiction Adventures",
+                description: "Explore futuristic worlds and advanced technologies in thrilling narratives.",
+                price: 25,
+                category: "science fiction",
+                stock: 30,
+                images: ["book-15.png"],
+                trending: true
+            },
+            {
+                name: "Biography: Inspiring Lives",
+                description: "Stories of remarkable individuals who changed the world.",
+                price: 30,
+                category: "biography",
+                stock: 25,
+                images: ["book-16.png"],
+                trending: false
+            },
+            {
+                name: "Self-Help: Personal Growth",
+                description: "Guides to improve yourself, achieve goals, and live better.",
+                price: 18,
+                category: "self-help",
+                stock: 45,
+                images: ["book-17.png"],
+                trending: true
+            },
+            {
+                name: "History: Ancient Civilizations",
+                description: "Dive into the past with tales of empires and discoveries.",
+                price: 28,
+                category: "history",
+                stock: 20,
+                images: ["book-18.png"],
+                trending: false
+            },
+            {
+                name: "Poetry Collection",
+                description: "A compilation of beautiful verses from renowned poets.",
+                price: 12,
+                category: "poetry",
+                stock: 50,
+                images: ["book-19.png"],
+                trending: true
+            },
+            {
+                name: "Children's Stories",
+                description: "Fun and educational tales for young readers.",
+                price: 10,
+                category: "children",
+                stock: 60,
+                images: ["book-20.png"],
                 trending: false
             }
         ];
@@ -281,9 +350,9 @@ const seedDummyBooks = async (req, res) => {
         const createdBooks = [];
 
         for (const bookBody of seedBooks) {
-            const existing = await Book.findOne({ title: bookBody.title });
+            const existing = await Product.findOne({ name: bookBody.name });
             if (existing) continue;
-            const created = await createBookFromBody(bookBody);
+            const created = await createProductFromBody(bookBody);
             createdBooks.push(created);
         }
 
@@ -321,12 +390,12 @@ const backfillBookSlugs = async (req, res) => {
 };
 
 module.exports = {
-    postABook,
-    getAllBooks,
-    getSingleBook,
-    getSingleBookBySlug,
-    UpdateBook,
-    deleteABook,
+    postAProduct,
+    getAllProducts,
+    getSingleProduct,
+    getSingleProductBySlug,
+    UpdateProduct,
+    deleteAProduct,
     seedDummyBooks,
     backfillBookSlugs
 }

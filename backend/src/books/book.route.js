@@ -1,6 +1,6 @@
 const express = require('express');
-const Book = require('./book.model');
-const { postABook, getAllBooks, getSingleBook, getSingleBookBySlug, UpdateBook, deleteABook, seedDummyBooks, backfillBookSlugs } = require('./book.controller');
+const Product = require('./book.model');
+const { postAProduct, getAllProducts, getSingleProduct, getSingleProductBySlug, UpdateProduct, deleteAProduct, seedDummyBooks, backfillBookSlugs } = require('./book.controller');
 const verifyAdminToken = require('../middleware/verifyAdminToken');
 const router =  express.Router();
 
@@ -10,8 +10,8 @@ const router =  express.Router();
 // put/patch = when edit or update something
 // delete = when delete something
 
-// post a book
-router.post("/create-book", verifyAdminToken, postABook)
+// post a product
+router.post("/create-book", verifyAdminToken, postAProduct)
 
 // seed dummy books (admin only)
 router.post("/seed-dummy-books", verifyAdminToken, seedDummyBooks);
@@ -19,19 +19,19 @@ router.post("/seed-dummy-books", verifyAdminToken, seedDummyBooks);
 // backfill slugs for old books (admin only)
 router.post("/backfill-slugs", verifyAdminToken, backfillBookSlugs);
 
-// get all books
-router.get("/", getAllBooks);
+// get all products
+router.get("/", getAllProducts);
 
-// single book endpoint by slug
-router.get("/slug/:slug", getSingleBookBySlug);
+// single product endpoint by slug
+router.get("/slug/:slug", getSingleProductBySlug);
 
-// single book endpoint
-router.get("/:id", getSingleBook);
+// single product endpoint
+router.get("/:id", getSingleProduct);
 
-// update a book endpoint
-router.put("/edit/:id", verifyAdminToken, UpdateBook);
+// update a product endpoint
+router.put("/edit/:id", verifyAdminToken, UpdateProduct);
 
-router.delete("/:id", verifyAdminToken, deleteABook)
+router.delete("/:id", verifyAdminToken, deleteAProduct)
 
 
 module.exports = router;

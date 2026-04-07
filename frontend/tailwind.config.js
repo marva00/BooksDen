@@ -7,16 +7,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Grayish, subtle palette
-        bg: '#f3f4f6',
+        bg: '#f9fafb',
         surface: '#ffffff',
-        surface2: '#eef0f3',
-        border: '#d5d9df',
-        text: '#1f2937',
+        surface2: '#f9fafb',
+        border: '#e5e7eb',
+        text: '#2C3333',
         muted: '#6b7280',
-        primary: '#6b7280',
-        secondary: '#4b5563',
-        favorite: '#9ca3af',
+        primary: '#4B5EAA',
+        secondary: '#EAD8C0',
+        favorite: '#6b7280',
       },
       fontFamily: {
         'primary' : ["Montserrat", "sans-serif"],

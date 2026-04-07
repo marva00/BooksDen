@@ -1,16 +1,18 @@
 import React, { useState } from 'react'
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useForm } from "react-hook-form"
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 import Swal from'sweetalert2';
 import { useCreateOrderMutation } from '../../redux/features/orders/ordersApi';
+import { clearCart } from '../../redux/features/cart/cartSlice';
 
 const CheckoutPage = () => {
     const cartItems = useSelector(state => state.cart.cartItems);
-    const totalPrice = cartItems.reduce((acc, item) => acc + item.newPrice, 0).toFixed(2);
+    const totalPrice = cartItems.reduce((acc, item) => acc + (item.newPrice * (item.quantity || 1)), 0).toFixed(2);
     const {  currentUser} = useAuth()
+    const dispatch = useDispatch();
     const {
         register,
         handleSubmit,
@@ -28,15 +30,24 @@ const CheckoutPage = () => {
             name: data.name,
             email: currentUser?.email,
             address: {
+                street: data.address,
                 city: data.city,
                 country: data.country,
                 state: data.state,
                 zipcode: data.zipcode
         
             },
+            userId: currentUser?.id,
             phone: data.phone,
             productIds: cartItems.map(item => item?._id),
-            totalPrice: totalPrice,
+            items: cartItems.map((item) => ({
+                productId: item._id,
+                quantity: item.quantity || 1,
+                price: item.newPrice,
+                title: item.title,
+                coverImage: item.coverImage,
+            })),
+            totalPrice: Number(totalPrice),
         }
         
         try {
@@ -50,13 +61,16 @@ const CheckoutPage = () => {
                 cancelButtonColor: "#d33",
                 confirmButtonText: "Yes, It's Okay!"
               });
-              navigate("/orders")
+              dispatch(clearCart());
+              navigate("/order-success")
         } catch (error) {
             console.error("Error place an order", error);
             alert("Failed to place an order")
         }
     }
 
+    if (!currentUser?.id) return <div>Please login to continue checkout.</div>;
+    if (cartItems.length === 0) return <div>Your cart is empty. <Link to="/cart" className="text-blue-600 underline">Go to cart</Link></div>;
     if(isLoading) return <div>Loading....</div>
     return (
         <section>

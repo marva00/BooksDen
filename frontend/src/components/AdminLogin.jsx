@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form"
 import axios from "axios"
 import getBaseUrl from '../utils/baseURL'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 const AdminLogin = () => {
     const [message, setMessage] = useState("")
@@ -15,6 +16,7 @@ const AdminLogin = () => {
       } = useForm()
 
       const navigate = useNavigate()
+      const { refreshAuth } = useAuth();
 
       const onSubmit = async (data) => {
         // console.log(data)
@@ -28,11 +30,7 @@ const AdminLogin = () => {
         //    console.log(auth)
             if(auth.token) {
                 localStorage.setItem('token', auth.token);
-                setTimeout(() => {
-                    localStorage.removeItem('token')
-                    alert('Token has been expired!, Please login again.');
-                    navigate("/")
-                }, 3600 * 1000)
+                refreshAuth();
             }
 
             alert("Admin Login successful!")

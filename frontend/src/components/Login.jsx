@@ -3,8 +3,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from "react-hook-form"
 import axios from 'axios';
 import getBaseUrl from '../utils/baseURL';
+import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
+    const { refreshAuth } = useAuth();
     const [message, setMessage] = useState("")
     const navigate = useNavigate()
     const {
@@ -28,6 +30,7 @@ const Login = () => {
             const auth = response.data;
             if (auth?.token) {
                 localStorage.setItem('token', auth.token);
+                refreshAuth();
             }
             alert("Login successful!");
             if (auth?.user?.role === 'admin') {

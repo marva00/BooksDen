@@ -17,6 +17,7 @@ import ManageBooks from "../pages/dashboard/manageBooks/ManageBooks";
 import AddBook from "../pages/dashboard/addBook/AddBook";
 import UpdateBook from "../pages/dashboard/EditBook/UpdateBook";
 import UserDashboard from "../pages/dashboard/users/UserDashboard";
+import OrderSuccessPage from "../pages/books/OrderSuccessPage";
 
 const router = createBrowserRouter([
     {
@@ -54,6 +55,10 @@ const router = createBrowserRouter([
         {
           path: "/checkout",
           element: <PrivateRoute><CheckoutPage/></PrivateRoute>
+        },
+        {
+          path: "/order-success",
+          element: <PrivateRoute><OrderSuccessPage/></PrivateRoute>
         },
         {
           path: "/books/:slug",

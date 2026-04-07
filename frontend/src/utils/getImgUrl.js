@@ -5,8 +5,8 @@ function getImgUrl(name) {
     if (/^https?:\/\//i.test(name)) return name;
     if (/^data:image\//i.test(name)) return name;
 
-    // Otherwise treat it as a local asset filename.
-    return new URL(`../assets/books/${name}`, import.meta.url).href;
+    // Otherwise treat it as a local asset filename in public/books/.
+    return `/${name}`;
 }
 
 export {getImgUrl}

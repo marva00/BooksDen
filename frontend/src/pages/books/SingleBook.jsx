@@ -1,22 +1,32 @@
 import React, { useEffect } from 'react'
 import { FiShoppingCart } from "react-icons/fi"
+import { HiHeart, HiOutlineHeart } from 'react-icons/hi2'
 import { useNavigate, useParams } from "react-router-dom"
 
 import { getImgUrl } from '../../utils/getImgUrl';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { addToCart } from '../../redux/features/cart/cartSlice';
 import { useFetchBookBySlugQuery } from '../../redux/features/books/booksApi';
 import SEO from '../../components/SEO';
+import { toggleWishlistItem } from '../../redux/features/wishlist/wishlistSlice';
+import { useAuth } from '../../context/AuthContext';
 
 const SingleBook = () => {
     const {slug} = useParams();
     const navigate = useNavigate();
     const {data: book, isLoading, isError} = useFetchBookBySlugQuery(slug);
+    const { currentUser } = useAuth();
 
     const dispatch =  useDispatch();
+    const wishlistItems = useSelector((state) => state.wishlist.items);
+    const isFavorite = wishlistItems.some((item) => item._id === book?._id);
 
     const handleAddToCart = (product) => {
         dispatch(addToCart(product))
+    }
+    const handleToggleWishlist = () => {
+        if (!currentUser?.id || !book) return;
+        dispatch(toggleWishlistItem(book));
     }
 
     useEffect(() => {
@@ -30,11 +40,11 @@ const SingleBook = () => {
   return (
     <div className="max-w-lg shadow-md p-5">
             <SEO
-              title={book?.seoTitle || `${book?.title} | Book Store`}
-              metaDescription={book?.metaDescription || book?.description}
-              keywords={book?.keywords || `${book?.category || ''}, books, bookstore`}
+              title={book?.seo?.metaTitle || `${book?.name} | Book Store`}
+              metaDescription={book?.seo?.metaDescription || book?.description}
+              keywords={book?.seo?.keywords || `${book?.category || ''}, books, bookstore`}
             />
-            <h1 className="text-2xl font-bold mb-6">{book.title}</h1>
+            <h1 className="text-2xl font-bold mb-6">{book.name}</h1>
 
             <div className=''>
                 <div>
@@ -56,11 +66,16 @@ const SingleBook = () => {
                     <p className="text-gray-700"><strong>Description:</strong> {book.description}</p>
                 </div>
 
-                <button onClick={() => handleAddToCart(book)} className="btn-primary px-6 space-x-1 flex items-center gap-1 ">
+                <div className="flex items-center gap-3">
+                <button onClick={() => handleAddToCart(book)} className="btn-primary px-6 space-x-1 flex items-center gap-1 whitespace-nowrap">
                     <FiShoppingCart className="" />
-                    <span>Add to Cart</span>
+                    <span className="whitespace-nowrap">Add to Cart</span>
 
                 </button>
+                <button onClick={handleToggleWishlist} className="px-3 py-2 border rounded-md">
+                  {isFavorite ? <HiHeart className="text-red-500" /> : <HiOutlineHeart />}
+                </button>
+                </div>
             </div>
         </div>
   )

@@ -1,5 +1,5 @@
 const express = require('express');
-const { createAOrder, getOrderByEmail } = require('./order.controller');
+const { createAOrder, getOrderByEmail, getOrderByUserId } = require('./order.controller');
 
 const router =  express.Router();
 
@@ -8,5 +8,6 @@ router.post("/", createAOrder);
 
 // get orders by user email 
 router.get("/email/:email", getOrderByEmail);
+router.get("/user/:userId", getOrderByUserId);
 
 module.exports = router;

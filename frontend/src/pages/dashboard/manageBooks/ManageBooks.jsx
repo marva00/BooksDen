@@ -33,10 +33,10 @@ const ManageBooks = () => {
             <div className="rounded-t mb-0 px-4 py-3 border-0">
                 <div className="flex flex-wrap items-center">
                     <div className="relative w-full px-4 max-w-full flex-grow flex-1">
-                        <h3 className="font-semibold text-base text-blueGray-700">All Books</h3>
+                        <h3 className="font-semibold text-base text-[#2C3333]">All Books</h3>
                     </div>
                     <div className="relative w-full px-4 max-w-full flex-grow flex-1 text-right">
-                        <button className="bg-indigo-500 text-white active:bg-indigo-600 text-xs font-bold uppercase px-3 py-1 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150" type="button">See all</button>
+                        <button className="bg-primary text-white text-xs font-bold uppercase px-3 py-1 rounded outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150" type="button">See all</button>
                     </div>
                 </div>
             </div>
@@ -45,19 +45,19 @@ const ManageBooks = () => {
                 <table className="items-center bg-transparent w-full border-collapse ">
                     <thead>
                         <tr>
-                            <th className="px-6 bg-blueGray-50 text-blueGray-500 align-middle border border-solid border-blueGray-100 py-3 text-xs uppercase border-l-0 border-r-0 whitespace-nowrap font-semibold text-left">
+                            <th className="px-6 bg-gray-50 text-[#2C3333] align-middle border border-solid border-gray-200 py-3 text-xs uppercase border-l-0 border-r-0 whitespace-nowrap font-semibold text-left">
                                 #
                             </th>
-                            <th className="px-6 bg-blueGray-50 text-blueGray-500 align-middle border border-solid border-blueGray-100 py-3 text-xs uppercase border-l-0 border-r-0 whitespace-nowrap font-semibold text-left">
+                            <th className="px-6 bg-gray-50 text-[#2C3333] align-middle border border-solid border-gray-200 py-3 text-xs uppercase border-l-0 border-r-0 whitespace-nowrap font-semibold text-left">
                                 Book Title
                             </th>
-                            <th className="px-6 bg-blueGray-50 text-blueGray-500 align-middle border border-solid border-blueGray-100 py-3 text-xs uppercase border-l-0 border-r-0 whitespace-nowrap font-semibold text-left">
+                            <th className="px-6 bg-gray-50 text-[#2C3333] align-middle border border-solid border-gray-200 py-3 text-xs uppercase border-l-0 border-r-0 whitespace-nowrap font-semibold text-left">
                                 Category
                             </th>
-                            <th className="px-6 bg-blueGray-50 text-blueGray-500 align-middle border border-solid border-blueGray-100 py-3 text-xs uppercase border-l-0 border-r-0 whitespace-nowrap font-semibold text-left">
+                            <th className="px-6 bg-gray-50 text-[#2C3333] align-middle border border-solid border-gray-200 py-3 text-xs uppercase border-l-0 border-r-0 whitespace-nowrap font-semibold text-left">
                                 Price
                             </th>
-                            <th className="px-6 bg-blueGray-50 text-blueGray-500 align-middle border border-solid border-blueGray-100 py-3 text-xs uppercase border-l-0 border-r-0 whitespace-nowrap font-semibold text-left">
+                            <th className="px-6 bg-gray-50 text-[#2C3333] align-middle border border-solid border-gray-200 py-3 text-xs uppercase border-l-0 border-r-0 whitespace-nowrap font-semibold text-left">
                                 Actions
                             </th>
                         </tr>
@@ -66,8 +66,8 @@ const ManageBooks = () => {
                     <tbody>
                         {
                             books && books.map((book, index) => (
-                                <tr key={index}>
-                                <th className="border-t-0 px-6 align-middle border-l-0 border-r-0 text-xs whitespace-nowrap p-4 text-left text-blueGray-700 ">
+                                <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                <th className="border-t-0 px-6 align-middle border-l-0 border-r-0 text-xs whitespace-nowrap p-4 text-left text-[#2C3333] ">
                                    {index + 1}
                                 </th>
                                 <td className="border-t-0 px-6 align-middle border-l-0 border-r-0 text-xs whitespace-nowrap p-4 ">
@@ -82,12 +82,12 @@ const ManageBooks = () => {
                                 </td>
                                 <td className="border-t-0 px-6 align-middle border-l-0 border-r-0 text-xs whitespace-nowrap p-4 space-x-4">
 
-                                    <Link to={`/dashboard/edit-book/${book._id}`} className="font-medium text-indigo-600 hover:text-indigo-700 mr-2 hover:underline underline-offset-2">
+                                    <Link to={`/dashboard/edit-book/${book._id}`} className="font-medium text-primary hover:text-secondary mr-2 hover:underline underline-offset-2">
                                         Edit
                                     </Link>
                                     <button 
                                     onClick={() => handleDeleteBook(book._id)}
-                                    className="font-medium bg-red-500 py-1 px-4 rounded-full text-white mr-2">Delete</button>
+                                    className="font-medium bg-primary py-1 px-4 rounded-full text-white mr-2">Delete</button>
                                 </td>
                             </tr> 
                             ))

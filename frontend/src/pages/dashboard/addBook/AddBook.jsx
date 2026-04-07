@@ -27,6 +27,7 @@ const AddBook = () => {
             trending: !!data.trending,
             oldPrice,
             newPrice,
+            slug: data.slug || '',
             // Persist actual gallery image content so homepage can render it later.
             coverImage: imageDataUrl || imageFileName || 'book-1.png'
         }
@@ -112,6 +113,13 @@ const AddBook = () => {
           label="Keywords"
           name="keywords"
           placeholder="keyword1, keyword2, keyword3"
+          register={register}
+        />
+
+        <InputField
+          label="Slug"
+          name="slug"
+          placeholder="book-title-clean-url"
           register={register}
         />
 
