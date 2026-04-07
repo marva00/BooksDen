@@ -47,6 +47,12 @@ const normalizeSeoPayload = (body = {}) => {
     };
 };
 
+const mergeSeoPayload = (preferredSeo = {}, fallbackSeo = {}) => ({
+    metaTitle: pickFirstString(preferredSeo?.metaTitle, fallbackSeo?.metaTitle) || "",
+    metaDescription: pickFirstString(preferredSeo?.metaDescription, fallbackSeo?.metaDescription) || "",
+    keywords: pickFirstString(preferredSeo?.keywords, fallbackSeo?.keywords) || "",
+});
+
 const normalizeBookPayload = (body = {}, options = {}) => {
     const { partial = false } = options;
     const payload = {};
@@ -209,7 +215,11 @@ const ensureProductSlug = async (productDoc) => {
 const createProductFromBody = async (body) => {
     const normalizedPayload = normalizeBookPayload(body, { partial: false });
     const enrichedPayload = enrichBookRecord(normalizedPayload, { forceDescription: true });
-    const finalPayload = { ...normalizedPayload, ...enrichedPayload };
+    const finalPayload = {
+        ...normalizedPayload,
+        ...enrichedPayload,
+        seo: mergeSeoPayload(normalizedPayload.seo, enrichedPayload.seo),
+    };
     const slug = await generateUniqueSlugFromInput(body?.slug, finalPayload?.name || finalPayload?.title);
     const newProduct = new Product({ ...finalPayload, slug });
     await newProduct.save();
@@ -300,6 +310,10 @@ const UpdateProduct = async (req, res) => {
 
         const updatePayload = normalizeBookPayload(req.body, { partial: true });
 
+        if (updatePayload.seo) {
+            updatePayload.seo = mergeSeoPayload(updatePayload.seo, existingProduct.seo || {});
+        }
+
         const hasContentChange = ["title", "name", "description", "category", "author", "brand"].some(
             (field) => Object.prototype.hasOwnProperty.call(updatePayload, field)
         );
@@ -324,7 +338,7 @@ const UpdateProduct = async (req, res) => {
             updatePayload.category = enrichedPayload.category;
             updatePayload.author = enrichedPayload.author;
             updatePayload.brand = enrichedPayload.brand;
-            updatePayload.seo = enrichedPayload.seo;
+            updatePayload.seo = mergeSeoPayload(updatePayload.seo, enrichedPayload.seo);
         }
 
         const hasSlugCandidate =

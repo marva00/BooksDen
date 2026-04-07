@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "../context/AuthContext";
 import { hydrateWishlist } from "../redux/features/wishlist/wishlistSlice";
+import { hydrateCart } from "../redux/features/cart/cartSlice";
 
 const navigation = [
     {name: "Dashboard", href:"/user-dashboard"},
@@ -32,6 +33,7 @@ const Navbar = () => {
 
     useEffect(() => {
         dispatch(hydrateWishlist(currentUser?.id || null));
+        dispatch(hydrateCart(currentUser?.id || null));
     }, [currentUser?.id, dispatch]);
   
     return (
