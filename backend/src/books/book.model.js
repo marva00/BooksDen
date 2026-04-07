@@ -58,6 +58,11 @@ const productSchema = new mongoose.Schema({
         default: 0,
         min: 0,
     },
+    brand: {
+        type: String,
+        trim: true,
+        default: 'generic',
+    },
     author: {
         type: String,
         default: 'admin',
@@ -107,6 +112,9 @@ const productSchema = new mongoose.Schema({
 
         const candidateOldPrice = Number(this.oldPrice);
         this.oldPrice = Number.isFinite(candidateOldPrice) ? candidateOldPrice : this.newPrice;
+
+        const resolvedBrand = (this.brand || this.author || 'generic').toString().trim();
+        this.brand = resolvedBrand || 'generic';
 
         const coverFromImages = Array.isArray(this.images) && this.images.length > 0 ? this.images[0] : '';
         const resolvedCoverImage = (this.coverImage || coverFromImages || 'book-1.png').toString().trim();

@@ -69,6 +69,22 @@ const orderSchema = new mongoose.Schema({
             },
         }
     ],
+    coupon: {
+        code: {
+            type: String,
+            trim: true,
+            uppercase: true,
+        },
+        percent: {
+            type: Number,
+            min: 0,
+            max: 100,
+        },
+        discountAmount: {
+            type: Number,
+            min: 0,
+        },
+    },
     status: {
         type: String,
         enum: ['pending', 'processing', 'shipped', 'delivered'],

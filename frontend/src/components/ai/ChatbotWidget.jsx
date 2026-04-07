@@ -1,14 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useDispatch } from "react-redux";
-import { addToCart, updateCartQty } from "../../redux/features/cart/cartSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { addToCart, applyCoupon, clearCoupon, removeFromCart, updateCartQty } from "../../redux/features/cart/cartSlice";
 import getBaseUrl from "../../utils/baseURL";
+import { getRecommendationBehaviorContext, trackProductClick } from "../../utils/recommendationBehavior";
 
 const ChatbotWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
   const idleTimerRef = useRef(null);
+  const suggestionTimerRef = useRef(null);
+  const suggestionAbortRef = useRef(null);
   const lastInteractionRef = useRef(Date.now());
   const [lastShownProducts, setLastShownProducts] = useState([]);
   const [pendingCartAction, setPendingCartAction] = useState(null);
@@ -16,12 +22,94 @@ const ChatbotWidget = () => {
     {
       role: "assistant",
       content:
-        "Hi! I am your Smart E-Commerce Assistant. Ask me to search products, check orders, add items to cart, or answer shipping questions.",
+        "Hi! I am your Smart E-Commerce Assistant. Ask me to find products with filters like category, price, rating, or brand. I can also answer shipping info, return policy, and payment methods.",
       products: [],
     },
   ]);
 
   const dispatch = useDispatch();
+  const cartItems = useSelector((state) => state.cart.cartItems);
+  const appliedCoupon = useSelector((state) => state.cart.appliedCoupon);
+
+  const buildCartContext = () => ({
+    items: (cartItems || []).map((item) => ({
+      id: item?._id || item?.id || item?.productId,
+      title: item?.title || item?.name || "Item",
+      quantity: item?.quantity || 1,
+      price: Number(item?.newPrice ?? item?.price) || 0,
+    })),
+    appliedCoupon: appliedCoupon
+      ? {
+          code: appliedCoupon.code,
+          percent: appliedCoupon.percent,
+        }
+      : null,
+  });
+
+  const clearSuggestions = () => {
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setActiveSuggestionIndex(-1);
+  };
+
+  const buildSuggestionPrompt = (suggestion) => {
+    if (!suggestion) return "";
+    if (suggestion.type === "category") return `Show me ${suggestion.value} books`;
+    if (suggestion.type === "brand") return `Show me books from ${suggestion.value}`;
+    return `Show me ${suggestion.value}`;
+  };
+
+  const handleSuggestionSelect = async (suggestion) => {
+    const prompt = buildSuggestionPrompt(suggestion);
+    if (!prompt || isLoading) return;
+    setInput("");
+    clearSuggestions();
+    lastInteractionRef.current = Date.now();
+    await sendMessage(prompt, false);
+  };
+
+  const fetchSuggestions = async (query) => {
+    if (query.trim().length < 2) {
+      clearSuggestions();
+      return;
+    }
+
+    if (suggestionAbortRef.current) {
+      suggestionAbortRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    suggestionAbortRef.current = controller;
+    const token = localStorage.getItem("token");
+
+    try {
+      const response = await fetch(
+        `${getBaseUrl()}/api/ai/suggestions?q=${encodeURIComponent(query.trim())}&limit=6`,
+        {
+          signal: controller.signal,
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+
+      if (!response.ok) {
+        clearSuggestions();
+        return;
+      }
+
+      const data = await response.json();
+      const nextSuggestions = Array.isArray(data?.suggestions) ? data.suggestions : [];
+      setSuggestions(nextSuggestions);
+      setShowSuggestions(nextSuggestions.length > 0);
+      setActiveSuggestionIndex(nextSuggestions.length > 0 ? 0 : -1);
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        clearSuggestions();
+      }
+    }
+  };
+
   const askBackend = async (conversation, idle = false) => {
     const token = localStorage.getItem("token");
     const response = await fetch(`${getBaseUrl()}/api/ai/chat`, {
@@ -38,6 +126,8 @@ const ChatbotWidget = () => {
         idle,
         lastShownProducts,
         pendingCartAction,
+        behaviorContext: getRecommendationBehaviorContext(),
+        cartContext: buildCartContext(),
       }),
     });
 
@@ -70,6 +160,22 @@ const ChatbotWidget = () => {
         await handleQuickAddToCart(addAction.payload.productId, addAction.payload.quantity || 1);
         setPendingCartAction(null);
       }
+
+      const removeAction = actions.find((item) => item.type === "remove_from_cart");
+      if (removeAction?.payload?.productId) {
+        dispatch(removeFromCart({ _id: removeAction.payload.productId }));
+      }
+
+      const couponAction = actions.find((item) => item.type === "apply_coupon");
+      if (couponAction?.payload?.code) {
+        dispatch(applyCoupon(couponAction.payload));
+      }
+
+      const clearCouponAction = actions.find((item) => item.type === "clear_coupon");
+      if (clearCouponAction) {
+        dispatch(clearCoupon());
+      }
+
       const assistantMessage = {
         role: "assistant",
         content: data?.reply || "I could not generate a response.",
@@ -97,6 +203,7 @@ const ChatbotWidget = () => {
     const text = input.trim();
     if (!text || isLoading) return;
     setInput("");
+    clearSuggestions();
     lastInteractionRef.current = Date.now();
     await sendMessage(text, false);
   };
@@ -123,13 +230,55 @@ const ChatbotWidget = () => {
       const isIdle = now - lastInteractionRef.current > 45000;
       if (isIdle && !isLoading) {
         lastInteractionRef.current = now;
-        await sendMessage("Suggest trending products for me", true);
+        if ((cartItems || []).length > 0) {
+          await sendMessage("Can you remind me about my cart?", true);
+        } else {
+          await sendMessage("Suggest trending products for me", true);
+        }
       }
     }, 15000);
     return () => {
       if (idleTimerRef.current) clearInterval(idleTimerRef.current);
     };
-  }, [isOpen, isLoading, messages]);
+  }, [isOpen, isLoading, messages, cartItems]);
+
+  useEffect(() => {
+    if (!isOpen || isLoading) {
+      clearSuggestions();
+      return;
+    }
+
+    const query = input.trim();
+    if (query.length < 2) {
+      clearSuggestions();
+      return;
+    }
+
+    if (suggestionTimerRef.current) {
+      clearTimeout(suggestionTimerRef.current);
+    }
+
+    suggestionTimerRef.current = setTimeout(() => {
+      fetchSuggestions(query);
+    }, 220);
+
+    return () => {
+      if (suggestionTimerRef.current) {
+        clearTimeout(suggestionTimerRef.current);
+      }
+    };
+  }, [input, isOpen, isLoading]);
+
+  useEffect(() => {
+    return () => {
+      if (suggestionAbortRef.current) {
+        suggestionAbortRef.current.abort();
+      }
+      if (suggestionTimerRef.current) {
+        clearTimeout(suggestionTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <>
@@ -162,15 +311,27 @@ const ChatbotWidget = () => {
                       <div key={product.id} className="border bg-white rounded-md p-2 text-gray-800">
                         <p className="font-semibold text-xs">{product.title}</p>
                         <p className="text-xs">Rs. {product.price}</p>
+                        <p className="text-[11px] text-gray-600 capitalize">
+                          {product.category || "uncategorized"}
+                          {product.brand ? ` | ${product.brand}` : ""}
+                        </p>
+                        <p className="text-[11px] text-gray-500">Rating: {Number(product.rating || 0).toFixed(1)}</p>
+                        {product.reason && (
+                          <p className="text-[11px] text-blue-700">{product.reason}</p>
+                        )}
                         <div className="mt-1 flex items-center gap-2">
                           <Link
                             to={`/books/${product.slug}`}
+                            onClick={() => trackProductClick(product.id)}
                             className="text-xs px-2 py-1 bg-primary text-white rounded"
                           >
                             View
                           </Link>
                           <button
-                            onClick={() => handleQuickAddToCart(product.id)}
+                            onClick={() => {
+                              trackProductClick(product.id);
+                              handleQuickAddToCart(product.id);
+                            }}
                             className="text-xs px-2 py-1 border rounded"
                           >
                             Add
@@ -205,15 +366,69 @@ const ChatbotWidget = () => {
             )}
           </div>
           <div className="p-3 border-t flex gap-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSend();
-              }}
-              placeholder="Ask about products, orders..."
-              className="flex-1 border rounded-md px-3 py-2 text-sm"
-            />
+            <div className="relative flex-1">
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 bottom-full mb-2 max-h-48 overflow-y-auto border border-gray-200 rounded-md bg-white shadow-lg z-20">
+                  {suggestions.map((suggestion, index) => (
+                    <button
+                      key={`${suggestion.type}-${suggestion.value}-${index}`}
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => handleSuggestionSelect(suggestion)}
+                      className={`w-full text-left px-3 py-2 text-xs border-b last:border-b-0 ${
+                        index === activeSuggestionIndex ? "bg-secondary" : "bg-white"
+                      }`}
+                    >
+                      {suggestion.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onFocus={() => {
+                  if (suggestions.length > 0) setShowSuggestions(true);
+                }}
+                onKeyDown={(e) => {
+                  if (showSuggestions && suggestions.length > 0) {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setActiveSuggestionIndex((prev) => (prev + 1) % suggestions.length);
+                      return;
+                    }
+
+                    if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setActiveSuggestionIndex((prev) => {
+                        if (prev <= 0) return suggestions.length - 1;
+                        return prev - 1;
+                      });
+                      return;
+                    }
+
+                    if (e.key === "Enter" && activeSuggestionIndex >= 0) {
+                      e.preventDefault();
+                      handleSuggestionSelect(suggestions[activeSuggestionIndex]);
+                      return;
+                    }
+
+                    if (e.key === "Escape") {
+                      e.preventDefault();
+                      setShowSuggestions(false);
+                      return;
+                    }
+                  }
+
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder="Ask about products, orders, shipping, returns..."
+                className="w-full border rounded-md px-3 py-2 text-sm"
+              />
+            </div>
             <button
               onClick={handleSend}
               className="bg-primary text-white px-3 py-2 rounded-md text-sm"

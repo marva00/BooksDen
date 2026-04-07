@@ -2,13 +2,20 @@ import React from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { Link } from 'react-router-dom'
 import { getImgUrl } from '../../utils/getImgUrl';
-import { clearCart, removeFromCart, updateCartQty } from '../../redux/features/cart/cartSlice';
+import { clearCart, clearCoupon, removeFromCart, updateCartQty } from '../../redux/features/cart/cartSlice';
 
 const CartPage = () => {
     const cartItems = useSelector(state => state.cart.cartItems);
+    const appliedCoupon = useSelector(state => state.cart.appliedCoupon);
     const dispatch =  useDispatch()
 
-    const totalPrice =  cartItems.reduce((acc, item) => acc + (item.newPrice * (item.quantity || 1)), 0).toFixed(2);
+    const subtotal = cartItems.reduce(
+        (acc, item) => acc + ((Number(item?.newPrice ?? item?.price) || 0) * (item.quantity || 1)),
+        0
+    );
+    const couponPercent = Number(appliedCoupon?.percent || 0);
+    const discountAmount = couponPercent > 0 ? (subtotal * couponPercent) / 100 : 0;
+    const totalPrice = Math.max(0, subtotal - discountAmount).toFixed(2);
 
     const handleRemoveFromCart = (product) => {
         dispatch(removeFromCart(product))
@@ -16,6 +23,10 @@ const CartPage = () => {
 
     const handleClearCart  = () => {
         dispatch(clearCart())
+    }
+
+    const handleClearCoupon = () => {
+        dispatch(clearCoupon())
     }
     const handleQtyChange = (id, qty) => {
         dispatch(updateCartQty({ id, quantity: qty }));
@@ -60,7 +71,7 @@ const CartPage = () => {
                                                                 <h3>
                                                                     <Link to='/'>{product?.title}</Link>
                                                                 </h3>
-                                                                <p className="sm:ml-4">Rs. {product?.newPrice}</p>
+                                                                <p className="sm:ml-4">Rs. {Number(product?.newPrice ?? product?.price) || 0}</p>
                                                             </div>
                                                             <p className="mt-1 text-sm text-gray-500 capitalize"><strong>Category: </strong>{product?.category}</p>
                                                         </div>
@@ -103,6 +114,21 @@ const CartPage = () => {
                 <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
                     <div className="flex justify-between text-base font-medium text-gray-900">
                         <p>Subtotal</p>
+                        <p>Rs. {subtotal.toFixed(2)}</p>
+                    </div>
+                    {appliedCoupon && (
+                        <div className="mt-2 flex items-center justify-between text-sm">
+                            <p>
+                                Coupon <span className="font-semibold">{appliedCoupon.code}</span> ({couponPercent}% off)
+                            </p>
+                            <div className="flex items-center gap-3">
+                                <p className="text-green-700">- Rs. {discountAmount.toFixed(2)}</p>
+                                <button onClick={handleClearCoupon} className="text-xs underline">Remove</button>
+                            </div>
+                        </div>
+                    )}
+                    <div className="mt-2 flex justify-between text-base font-semibold text-gray-900">
+                        <p>Total</p>
                         <p>Rs. {totalPrice ? totalPrice : 0}</p>
                     </div>
                     <p className="mt-0.5 text-sm text-gray-500">Shipping and taxes calculated at checkout.</p>

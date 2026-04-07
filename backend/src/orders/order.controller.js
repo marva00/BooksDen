@@ -1,7 +1,20 @@
+const mongoose = require("mongoose");
 const Order = require("./order.model");
 
 const isAdminRequest = (req) => req?.user?.role === "admin";
 const normalizeEmail = (value) => (typeof value === "string" ? value.trim().toLowerCase() : "");
+
+const buildOrderTimeline = (status = "pending") => {
+  const flow = ["pending", "processing", "shipped", "delivered"];
+  const resolvedStatus = (status || "pending").toLowerCase();
+  const index = flow.indexOf(resolvedStatus);
+  const currentIndex = index >= 0 ? index : 0;
+  return flow.map((step, i) => ({
+    step,
+    done: i <= currentIndex,
+    current: i === currentIndex,
+  }));
+};
 
 const createAOrder = async (req, res) => {
   try {
@@ -80,8 +93,44 @@ const getOrderByUserId = async (req, res) => {
   }
 }
 
+const getOrderTrackingById = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({ message: "Invalid order id." });
+    }
+
+    const query = isAdminRequest(req)
+      ? { _id: orderId }
+      : { _id: orderId, userId: String(req.user?.id) };
+
+    const order = await Order.findOne(query);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found." });
+    }
+
+    const itemsCount = Array.isArray(order.items)
+      ? order.items.reduce((sum, item) => sum + (Number(item?.quantity) || 0), 0)
+      : 0;
+
+    return res.status(200).json({
+      orderId: order._id,
+      status: order.status,
+      totalPrice: order.totalPrice,
+      itemsCount,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      timeline: buildOrderTimeline(order.status),
+    });
+  } catch (error) {
+    console.error("Error tracking order by id", error);
+    return res.status(500).json({ message: "Failed to track order." });
+  }
+};
+
 module.exports = {
   createAOrder,
   getOrderByEmail,
-  getOrderByUserId
+  getOrderByUserId,
+  getOrderTrackingById,
 };

@@ -10,7 +10,14 @@ import { clearCart } from '../../redux/features/cart/cartSlice';
 
 const CheckoutPage = () => {
     const cartItems = useSelector(state => state.cart.cartItems);
-    const totalPrice = cartItems.reduce((acc, item) => acc + (item.newPrice * (item.quantity || 1)), 0).toFixed(2);
+    const appliedCoupon = useSelector(state => state.cart.appliedCoupon);
+    const subtotal = cartItems.reduce(
+        (acc, item) => acc + ((Number(item?.newPrice ?? item?.price) || 0) * (item.quantity || 1)),
+        0
+    );
+    const couponPercent = Number(appliedCoupon?.percent || 0);
+    const discountAmount = couponPercent > 0 ? (subtotal * couponPercent) / 100 : 0;
+    const totalPrice = Math.max(0, subtotal - discountAmount).toFixed(2);
     const {  currentUser} = useAuth()
     const dispatch = useDispatch();
     const {
@@ -43,26 +50,40 @@ const CheckoutPage = () => {
             items: cartItems.map((item) => ({
                 productId: item._id,
                 quantity: item.quantity || 1,
-                price: item.newPrice,
+                price: Number(item?.newPrice ?? item?.price) || 0,
                 title: item.title,
                 coverImage: item.coverImage,
             })),
+            coupon: appliedCoupon
+                ? {
+                    code: appliedCoupon.code,
+                    percent: couponPercent,
+                    discountAmount: Number(discountAmount.toFixed(2)),
+                }
+                : undefined,
             totalPrice: Number(totalPrice),
         }
         
         try {
-            await createOrder(newOrder).unwrap();
+            const createdOrder = await createOrder(newOrder).unwrap();
+            const createdOrderId = createdOrder?._id;
             Swal.fire({
                 title: "Confirmed Order",
-                text: "Your order placed successfully!",
-                icon: "warning",
+                text: createdOrderId
+                    ? `Your order (${createdOrderId}) placed successfully!`
+                    : "Your order placed successfully!",
+                icon: "success",
                 showCancelButton: true,
                 confirmButtonColor: "#3085d6",
                 cancelButtonColor: "#d33",
                 confirmButtonText: "Yes, It's Okay!"
               });
               dispatch(clearCart());
-              navigate("/order-success")
+              navigate("/order-success", {
+                state: {
+                    orderId: createdOrderId || ""
+                }
+              })
         } catch (error) {
             console.error("Error place an order", error);
             alert("Failed to place an order")

@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Product = require("./book.model");
+const { enrichBookRecord } = require("./book.enrichment");
 
 const slugify = (value = "") =>
     value
@@ -107,6 +108,11 @@ const normalizeBookPayload = (body = {}, options = {}) => {
         payload.rating = rating;
     }
 
+    const brand = pickFirstString(body.brand, body.author);
+    if (brand !== undefined) {
+        payload.brand = brand;
+    }
+
     const author = pickFirstString(body.author);
     if (author !== undefined) {
         payload.author = author;
@@ -145,6 +151,7 @@ const toClientBook = (productDoc) => {
     const normalizedImages =
         Array.isArray(raw.images) && raw.images.length > 0 ? raw.images : [coverImage];
     const seo = raw.seo || {};
+    const brand = pickFirstString(raw.brand, raw.author) || "generic";
 
     return {
         ...raw,
@@ -156,6 +163,7 @@ const toClientBook = (productDoc) => {
         coverImage,
         images: normalizedImages,
         trending: !!raw.trending,
+        brand,
         seo: {
             metaTitle: seo.metaTitle || "",
             metaDescription: seo.metaDescription || "",
@@ -200,8 +208,10 @@ const ensureProductSlug = async (productDoc) => {
 
 const createProductFromBody = async (body) => {
     const normalizedPayload = normalizeBookPayload(body, { partial: false });
-    const slug = await generateUniqueSlugFromInput(body?.slug, normalizedPayload?.name || normalizedPayload?.title);
-    const newProduct = new Product({ ...normalizedPayload, slug });
+    const enrichedPayload = enrichBookRecord(normalizedPayload, { forceDescription: true });
+    const finalPayload = { ...normalizedPayload, ...enrichedPayload };
+    const slug = await generateUniqueSlugFromInput(body?.slug, finalPayload?.name || finalPayload?.title);
+    const newProduct = new Product({ ...finalPayload, slug });
     await newProduct.save();
     return newProduct;
 };
@@ -283,7 +293,40 @@ const UpdateProduct = async (req, res) => {
             return res.status(400).send({ message: "Invalid product id" });
         }
 
+        const existingProduct = await Product.findById(id);
+        if(!existingProduct) {
+            return res.status(404).send({message: "Product is not Found!"})
+        }
+
         const updatePayload = normalizeBookPayload(req.body, { partial: true });
+
+        const hasContentChange = ["title", "name", "description", "category", "author", "brand"].some(
+            (field) => Object.prototype.hasOwnProperty.call(updatePayload, field)
+        );
+
+        if (hasContentChange) {
+            const mergedPayload = {
+                ...existingProduct.toObject(),
+                ...updatePayload,
+                seo: {
+                    ...(existingProduct.seo || {}),
+                    ...(updatePayload.seo || {}),
+                },
+            };
+
+            const enrichedPayload = enrichBookRecord(mergedPayload, {
+                forceDescription: Object.prototype.hasOwnProperty.call(updatePayload, "description"),
+            });
+
+            updatePayload.title = enrichedPayload.title;
+            updatePayload.name = enrichedPayload.name;
+            updatePayload.description = enrichedPayload.description;
+            updatePayload.category = enrichedPayload.category;
+            updatePayload.author = enrichedPayload.author;
+            updatePayload.brand = enrichedPayload.brand;
+            updatePayload.seo = enrichedPayload.seo;
+        }
+
         const hasSlugCandidate =
             typeof req.body?.slug === "string" ||
             typeof updatePayload?.name === "string" ||
@@ -305,9 +348,6 @@ const UpdateProduct = async (req, res) => {
             new: true,
             runValidators: true,
         });
-        if(!updatedProduct) {
-            return res.status(404).send({message: "Product is not Found!"})
-        }
         return res.status(200).send({
             message: "Product updated successfully",
             product: toClientBook(updatedProduct)
@@ -566,6 +606,68 @@ const backfillBookSlugs = async (req, res) => {
     }
 };
 
+const enrichBookInventory = async (req, res) => {
+    try {
+        const books = await Product.find().sort({ createdAt: -1 });
+        const bulkOps = [];
+        const sample = [];
+
+        for (const bookDoc of books) {
+            const current = typeof bookDoc.toObject === "function" ? bookDoc.toObject() : bookDoc;
+            const enriched = enrichBookRecord(current, { forceDescription: true });
+            const setPayload = {};
+
+            const fields = ["title", "name", "description", "category", "author", "brand", "rating", "stock"];
+            for (const field of fields) {
+                const currentValue = current?.[field];
+                const nextValue = enriched?.[field];
+                const changed =
+                    typeof currentValue === "number" || typeof nextValue === "number"
+                        ? Number(currentValue) !== Number(nextValue)
+                        : String(currentValue ?? "") !== String(nextValue ?? "");
+
+                if (changed) {
+                    setPayload[field] = nextValue;
+                }
+            }
+
+            if (JSON.stringify(current?.seo || {}) !== JSON.stringify(enriched?.seo || {})) {
+                setPayload.seo = enriched.seo;
+            }
+
+            if (Object.keys(setPayload).length === 0) continue;
+
+            bulkOps.push({
+                updateOne: {
+                    filter: { _id: current._id },
+                    update: { $set: setPayload },
+                },
+            });
+
+            if (sample.length < 10) {
+                sample.push({
+                    title: enriched.title,
+                    updatedFields: Object.keys(setPayload),
+                });
+            }
+        }
+
+        if (bulkOps.length > 0) {
+            await Product.bulkWrite(bulkOps, { ordered: false });
+        }
+
+        return res.status(200).json({
+            message: "Inventory enrichment completed",
+            total: books.length,
+            updated: bulkOps.length,
+            sample,
+        });
+    } catch (error) {
+        console.error("Failed to enrich inventory", error);
+        return res.status(500).json({ message: "Failed to enrich inventory" });
+    }
+};
+
 module.exports = {
     postAProduct,
     getAllProducts,
@@ -574,5 +676,6 @@ module.exports = {
     UpdateProduct,
     deleteAProduct,
     seedDummyBooks,
-    backfillBookSlugs
+    backfillBookSlugs,
+    enrichBookInventory
 }

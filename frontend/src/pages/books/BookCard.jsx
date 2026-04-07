@@ -9,6 +9,7 @@ import { useDispatch, useSelector } from'react-redux'
 import { addToCart } from '../../redux/features/cart/cartSlice'
 import { toggleWishlistItem } from '../../redux/features/wishlist/wishlistSlice'
 import { useAuth } from '../../context/AuthContext'
+import { trackProductClick } from '../../utils/recommendationBehavior'
 
 const BookCard = ({book}) => {
     const dispatch =  useDispatch();
@@ -30,8 +31,10 @@ const BookCard = ({book}) => {
         }
     }, [coverImage]);
     const [imageSrc, setImageSrc] = useState(resolvedCover);
+    const bookId = book?._id || book?.id;
 
     const handleAddToCart = (product) => {
+        trackProductClick(bookId);
         dispatch(addToCart(product))
     }
     const handleToggleWishlist = () => {
@@ -48,6 +51,7 @@ const BookCard = ({book}) => {
                         <img
                             src={imageSrc}
                             alt=""
+                            onClick={() => trackProductClick(bookId)}
                             onError={() => setImageSrc(fallbackImage)}
                             className="w-full h-72 object-cover p-2 rounded-md cursor-pointer hover:scale-105 transition-all duration-200"
                         />
@@ -57,7 +61,7 @@ const BookCard = ({book}) => {
                 <div className="flex flex-col justify-between flex-1 min-w-0 py-1 pr-1">
                   <div>
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <Link to={`/books/${book.slug || book._id}`} className="flex-1 min-w-0">
+                      <Link to={`/books/${book.slug || book._id}`} className="flex-1 min-w-0" onClick={() => trackProductClick(bookId)}>
                           <h3 className="text-xl font-semibold hover:text-blue-600 line-clamp-2 min-h-[3.5rem]">
                           {book?.title || book?.name || 'Untitled Book'}
                           </h3>

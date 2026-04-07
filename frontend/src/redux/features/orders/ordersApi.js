@@ -36,10 +36,16 @@ const ordersApi = createApi({
                 url: `/user/${userId}`
             }),
             providesTags: ['Orders']
+        }),
+        getOrderTracking: builder.query({
+            query: (orderId) => ({
+                url: `/track/${orderId}`
+            }),
+            providesTags: (result, error, orderId) => [{ type: 'Orders', id: orderId }]
         })
     })
 })
 
-export const {useCreateOrderMutation, useGetOrderByEmailQuery, useGetOrderByUserIdQuery} = ordersApi;
+export const {useCreateOrderMutation, useGetOrderByEmailQuery, useGetOrderByUserIdQuery, useGetOrderTrackingQuery} = ordersApi;
 
 export default ordersApi;

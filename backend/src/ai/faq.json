@@ -10,5 +10,13 @@
   {
     "keywords": ["return", "refund", "exchange"],
     "answer": "Eligible items can be returned within the return window. Refunds are processed after quality inspection."
+  },
+  {
+    "keywords": ["payment", "payment method", "payment methods", "how to pay", "pay"],
+    "answer": "We support major debit/credit cards and Cash on Delivery where available. Payment options are shown at checkout."
+  },
+  {
+    "keywords": ["cod", "cash on delivery", "card", "debit card", "credit card", "upi", "wallet"],
+    "answer": "Accepted payment methods include debit/credit cards and Cash on Delivery in eligible areas. Please check checkout for options in your location."
   }
 ]

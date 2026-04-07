@@ -10,6 +10,7 @@ import { useFetchBookBySlugQuery } from '../../redux/features/books/booksApi';
 import SEO from '../../components/SEO';
 import { toggleWishlistItem } from '../../redux/features/wishlist/wishlistSlice';
 import { useAuth } from '../../context/AuthContext';
+import { trackProductClick, trackProductView } from '../../utils/recommendationBehavior';
 
 const SingleBook = () => {
     const {slug} = useParams();
@@ -22,6 +23,7 @@ const SingleBook = () => {
     const isFavorite = wishlistItems.some((item) => item._id === book?._id);
 
     const handleAddToCart = (product) => {
+        trackProductClick(product?._id || product?.id);
         dispatch(addToCart(product))
     }
     const handleToggleWishlist = () => {
@@ -34,6 +36,11 @@ const SingleBook = () => {
             navigate(`/books/${book.slug}`, { replace: true });
         }
     }, [book?.slug, slug, navigate]);
+
+    useEffect(() => {
+        if (!book?._id) return;
+        trackProductView(book._id);
+    }, [book?._id]);
 
     if(isLoading) return <div>Loading...</div>
     if(isError) return <div>Error happending to load book info</div>
