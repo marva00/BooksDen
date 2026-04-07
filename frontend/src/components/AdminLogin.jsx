@@ -37,7 +37,7 @@ const AdminLogin = () => {
             navigate("/dashboard")
 
         } catch (error) {
-            setMessage("Please provide a valid email and password") 
+            setMessage("Please provide a valid username and password") 
             console.error(error)
         }
       }

@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { HiViewGridAdd } from "react-icons/hi";
 import { MdOutlineManageHistory } from "react-icons/md";
+import { useAuth } from '../../context/AuthContext';
 
 const DashboardLayout = () => {
   const [showNotifications, setShowNotifications] = useState(false);
@@ -12,6 +13,7 @@ const DashboardLayout = () => {
   ]);
 
   const navigate = useNavigate()
+  const { logout } = useAuth();
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markAllRead = () => {
@@ -26,8 +28,8 @@ const DashboardLayout = () => {
     setNotifications((prev) => prev.filter((n) => !n.read));
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
+  const handleLogout = async () => {
+    await logout();
     navigate("/")
   }
 

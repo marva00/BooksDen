@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const Product = require("./book.model");
-const MIN_PRICE = 400;
-const MAX_PRICE = 900;
+
 const slugify = (value = "") =>
     value
         .toString()
@@ -12,17 +11,160 @@ const slugify = (value = "") =>
         .replace(/-+/g, "-")
         .replace(/^-|-$/g, "");
 
-const isValidPriceRange = (oldPrice, newPrice) => {
-    const oldNum = Number(oldPrice);
-    const newNum = Number(newPrice);
-    return (
-        Number.isFinite(oldNum) &&
-        Number.isFinite(newNum) &&
-        oldNum >= MIN_PRICE &&
-        oldNum <= MAX_PRICE &&
-        newNum >= MIN_PRICE &&
-        newNum <= MAX_PRICE
-    );
+const toFiniteNumber = (value) => {
+    const numberValue = Number(value);
+    return Number.isFinite(numberValue) ? numberValue : undefined;
+};
+
+const toBoolean = (value) => {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") return value.trim().toLowerCase() === "true";
+    return undefined;
+};
+
+const pickFirstString = (...values) => {
+    for (const value of values) {
+        if (typeof value === "string" && value.trim()) return value.trim();
+    }
+    return undefined;
+};
+
+const normalizeSeoPayload = (body = {}) => {
+    const seoFromObject = body?.seo && typeof body.seo === "object" ? body.seo : {};
+    const metaTitle = pickFirstString(seoFromObject.metaTitle, body.seoTitle, body.metaTitle);
+    const metaDescription = pickFirstString(seoFromObject.metaDescription, body.metaDescription);
+    const keywords = pickFirstString(seoFromObject.keywords, body.keywords);
+
+    if (!metaTitle && !metaDescription && !keywords) {
+        return undefined;
+    }
+
+    return {
+        metaTitle: metaTitle || "",
+        metaDescription: metaDescription || "",
+        keywords: keywords || "",
+    };
+};
+
+const normalizeBookPayload = (body = {}, options = {}) => {
+    const { partial = false } = options;
+    const payload = {};
+
+    const title = pickFirstString(body.title, body.name);
+    if (title !== undefined) {
+        payload.title = title;
+        payload.name = title;
+    }
+
+    const description = pickFirstString(body.description);
+    if (description !== undefined) {
+        payload.description = description;
+    }
+
+    const category = pickFirstString(body.category);
+    if (category !== undefined) {
+        payload.category = category.toLowerCase();
+    }
+
+    const newPrice = toFiniteNumber(body.newPrice ?? body.price);
+    if (newPrice !== undefined) {
+        payload.newPrice = newPrice;
+        payload.price = newPrice;
+    }
+
+    const oldPrice = toFiniteNumber(body.oldPrice);
+    if (oldPrice !== undefined) {
+        payload.oldPrice = oldPrice;
+    } else if (!partial && newPrice !== undefined) {
+        payload.oldPrice = newPrice;
+    }
+
+    const coverFromImages = Array.isArray(body.images) && body.images.length > 0 ? body.images[0] : undefined;
+    const coverImage = pickFirstString(body.coverImage, coverFromImages);
+    if (coverImage !== undefined) {
+        payload.coverImage = coverImage;
+        payload.images = [coverImage];
+    } else if (Array.isArray(body.images) && body.images.length > 0) {
+        payload.images = body.images.filter((image) => typeof image === "string" && image.trim());
+    }
+
+    const stock = toFiniteNumber(body.stock);
+    if (stock !== undefined) {
+        payload.stock = stock;
+    } else if (!partial) {
+        payload.stock = 0;
+    }
+
+    const trending = toBoolean(body.trending);
+    if (trending !== undefined) {
+        payload.trending = trending;
+    } else if (!partial) {
+        payload.trending = false;
+    }
+
+    const rating = toFiniteNumber(body.rating);
+    if (rating !== undefined) {
+        payload.rating = rating;
+    }
+
+    const author = pickFirstString(body.author);
+    if (author !== undefined) {
+        payload.author = author;
+    }
+
+    const seo = normalizeSeoPayload(body);
+    if (seo) {
+        payload.seo = seo;
+    }
+
+    if (!partial) {
+        if (!payload.name || !payload.description || !payload.category) {
+            throw new Error("Book title, description, and category are required.");
+        }
+        if (payload.newPrice === undefined) {
+            throw new Error("Book price is required.");
+        }
+        if (!payload.coverImage) {
+            payload.coverImage = "book-1.png";
+            payload.images = [payload.coverImage];
+        }
+    }
+
+    return payload;
+};
+
+const toClientBook = (productDoc) => {
+    const raw = typeof productDoc?.toObject === "function" ? productDoc.toObject() : productDoc;
+    if (!raw) return raw;
+
+    const title = pickFirstString(raw.title, raw.name) || "Untitled Book";
+    const newPrice = toFiniteNumber(raw.newPrice ?? raw.price) ?? 0;
+    const oldPrice = toFiniteNumber(raw.oldPrice) ?? newPrice;
+    const coverImage =
+        pickFirstString(raw.coverImage, Array.isArray(raw.images) ? raw.images[0] : "") || "book-1.png";
+    const normalizedImages =
+        Array.isArray(raw.images) && raw.images.length > 0 ? raw.images : [coverImage];
+    const seo = raw.seo || {};
+
+    return {
+        ...raw,
+        title,
+        name: title,
+        newPrice,
+        price: toFiniteNumber(raw.price) ?? newPrice,
+        oldPrice,
+        coverImage,
+        images: normalizedImages,
+        trending: !!raw.trending,
+        seo: {
+            metaTitle: seo.metaTitle || "",
+            metaDescription: seo.metaDescription || "",
+            keywords: seo.keywords || "",
+        },
+        seoTitle: seo.metaTitle || "",
+        metaDescription: seo.metaDescription || "",
+        keywords: seo.keywords || "",
+    };
 };
 
 const generateUniqueSlug = async (name, excludeId = null) => {
@@ -57,8 +199,9 @@ const ensureProductSlug = async (productDoc) => {
 };
 
 const createProductFromBody = async (body) => {
-    const slug = await generateUniqueSlugFromInput(body?.slug, body?.name);
-    const newProduct = new Product({ ...body, slug });
+    const normalizedPayload = normalizeBookPayload(body, { partial: false });
+    const slug = await generateUniqueSlugFromInput(body?.slug, normalizedPayload?.name || normalizedPayload?.title);
+    const newProduct = new Product({ ...normalizedPayload, slug });
     await newProduct.save();
     return newProduct;
 };
@@ -66,10 +209,13 @@ const createProductFromBody = async (body) => {
 const postAProduct = async (req, res) => {
     try {
         const newProduct = await createProductFromBody(req.body);
-        return res.status(200).send({ message: "Product posted successfully", product: newProduct });
+        return res.status(201).send({
+            message: "Product posted successfully",
+            product: toClientBook(newProduct),
+        });
     } catch (error) {
         console.error("Error creating product", error);
-        return res.status(500).send({ message: "Failed to create product" });
+        return res.status(400).send({ message: error?.message || "Failed to create product" });
     }
 }
 
@@ -77,10 +223,12 @@ const postAProduct = async (req, res) => {
 const getAllProducts =  async (req, res) => {
     try {
         const products = await Product.find().sort({ createdAt: -1});
+        const normalizedProducts = [];
         for (const product of products) {
-            await ensureProductSlug(product);
+            const withSlug = await ensureProductSlug(product);
+            normalizedProducts.push(toClientBook(withSlug));
         }
-        return res.status(200).send(products)
+        return res.status(200).send(normalizedProducts)
         
     } catch (error) {
         console.error("Error fetching products", error);
@@ -91,12 +239,15 @@ const getAllProducts =  async (req, res) => {
 const getSingleProduct = async (req, res) => {
     try {
         const {id} = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).send({ message: "Invalid product id" });
+        }
         const product =  await Product.findById(id);
         if(!product){
             return res.status(404).send({message: "Product not Found!"})
         }
-        await ensureProductSlug(product);
-        return res.status(200).send(product)
+        const withSlug = await ensureProductSlug(product);
+        return res.status(200).send(toClientBook(withSlug))
         
     } catch (error) {
         console.error("Error fetching product", error);
@@ -116,8 +267,8 @@ const getSingleProductBySlug = async (req, res) => {
         if (!product) {
             return res.status(404).send({ message: "Product not Found!" });
         }
-        await ensureProductSlug(product);
-        return res.status(200).send(product);
+        const withSlug = await ensureProductSlug(product);
+        return res.status(200).send(toClientBook(withSlug));
     } catch (error) {
         console.error("Error fetching product by slug", error);
         return res.status(500).send({ message: "Failed to fetch product" });
@@ -128,32 +279,58 @@ const getSingleProductBySlug = async (req, res) => {
 const UpdateProduct = async (req, res) => {
     try {
         const {id} = req.params;
-        const updatePayload = { ...req.body };
-        updatePayload.slug = await generateUniqueSlugFromInput(req.body?.slug, req.body?.name, id);
-        const updatedProduct =  await Product.findByIdAndUpdate(id, updatePayload, {new: true});
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).send({ message: "Invalid product id" });
+        }
+
+        const updatePayload = normalizeBookPayload(req.body, { partial: true });
+        const hasSlugCandidate =
+            typeof req.body?.slug === "string" ||
+            typeof updatePayload?.name === "string" ||
+            typeof updatePayload?.title === "string";
+
+        if (hasSlugCandidate) {
+            updatePayload.slug = await generateUniqueSlugFromInput(
+                req.body?.slug,
+                updatePayload?.name || updatePayload?.title,
+                id
+            );
+        }
+
+        if (Object.keys(updatePayload).length === 0) {
+            return res.status(400).send({ message: "No valid product fields were provided." });
+        }
+
+        const updatedProduct =  await Product.findByIdAndUpdate(id, updatePayload, {
+            new: true,
+            runValidators: true,
+        });
         if(!updatedProduct) {
             return res.status(404).send({message: "Product is not Found!"})
         }
         return res.status(200).send({
             message: "Product updated successfully",
-            product: updatedProduct
+            product: toClientBook(updatedProduct)
         })
     } catch (error) {
         console.error("Error updating a product", error);
-        return res.status(500).send({message: "Failed to update a product"})
+        return res.status(400).send({message: error?.message || "Failed to update a product"})
     }
 }
 
 const deleteAProduct = async (req, res) => {
     try {
         const {id} = req.params;
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).send({ message: "Invalid product id" });
+        }
         const deletedProduct = await Product.findByIdAndDelete(id);
         if(!deletedProduct) {
             return res.status(404).send({message: "Product is not found!"})
         }
         return res.status(200).send({
             message: "Product deleted successfully",
-            product: deletedProduct
+            product: toClientBook(deletedProduct)
         })
     } catch (error) {
         console.error("Error deleting a product", error);
@@ -359,7 +536,7 @@ const seedDummyBooks = async (req, res) => {
         return res.status(201).json({
             message: "Dummy books seeded successfully",
             seeded: createdBooks.length,
-            books: createdBooks
+            books: createdBooks.map((book) => toClientBook(book))
         });
     } catch (error) {
         console.error("Failed to seed dummy books", error);
@@ -369,12 +546,12 @@ const seedDummyBooks = async (req, res) => {
 
 const backfillBookSlugs = async (req, res) => {
     try {
-        const books = await Book.find().sort({ createdAt: -1 });
+        const books = await Product.find().sort({ createdAt: -1 });
         let updated = 0;
 
         for (const book of books) {
             if (book.slug && typeof book.slug === "string" && book.slug.trim()) continue;
-            await ensureBookSlug(book);
+            await ensureProductSlug(book);
             updated += 1;
         }
 

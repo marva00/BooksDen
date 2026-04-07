@@ -1,14 +1,18 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { decodeJwt, isJwtExpired } from "../utils/jwt";
 
-const AuthContext =  createContext();
+const AuthContext =  createContext(undefined);
 
 export const useAuth = () => {
-    return useContext(AuthContext)
+    const context = useContext(AuthContext);
+    if (!context) {
+        throw new Error('useAuth must be used within AuthProvider');
+    }
+    return context;
 }
 
 // authProvider
-export const AuthProvide = ({children}) => {
+export const AuthProvider = ({children}) => {
     const [currentUser, setCurrentUser] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -61,3 +65,6 @@ export const AuthProvide = ({children}) => {
         </AuthContext.Provider>
     )
 }
+
+// Backward-compatible alias for existing imports.
+export const AuthProvide = AuthProvider;

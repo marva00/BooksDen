@@ -18,10 +18,20 @@ const Home = () => {
   // Make older DB documents safe to render even if some fields are missing
   const safeBooks = (books ?? []).map((book) => ({
     ...book,
+    title: typeof book?.title === 'string' && book.title.trim() ? book.title : (book?.name || 'Untitled Book'),
     trending: typeof book?.trending === 'boolean' ? book.trending : false,
-    coverImage: book?.coverImage || 'book-1.png',
-    oldPrice: typeof book?.oldPrice === 'number' ? book.oldPrice : Number(book?.oldPrice) || 0,
-    newPrice: typeof book?.newPrice === 'number' ? book.newPrice : Number(book?.newPrice) || 0,
+    coverImage:
+      book?.coverImage ||
+      (Array.isArray(book?.images) && book.images.length > 0 ? book.images[0] : '') ||
+      'book-1.png',
+    oldPrice:
+      typeof book?.oldPrice === 'number'
+        ? book.oldPrice
+        : Number(book?.oldPrice ?? book?.price ?? book?.newPrice) || 0,
+    newPrice:
+      typeof book?.newPrice === 'number'
+        ? book.newPrice
+        : Number(book?.newPrice ?? book?.price) || 0,
     description: typeof book?.description === 'string' ? book.description : '',
     category: typeof book?.category === 'string' ? book.category : '',
   }));

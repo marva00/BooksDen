@@ -92,12 +92,36 @@ const TOOLS = [
 const FAQ_PATH = path.join(__dirname, "faq.json");
 const SHIPPING_FAQ = JSON.parse(fs.readFileSync(FAQ_PATH, "utf-8"));
 
+const getBookTitle = (book) => book?.title || book?.name || "Untitled Book";
+const getBookPrice = (book) => {
+  const price = Number(book?.newPrice ?? book?.price);
+  return Number.isFinite(price) ? price : 0;
+};
+const getBookCover = (book) => {
+  if (typeof book?.coverImage === "string" && book.coverImage.trim()) return book.coverImage;
+  if (Array.isArray(book?.images) && book.images.length > 0) return book.images[0];
+  return "book-1.png";
+};
+
+const applyPriceFilter = (query, minPrice, maxPrice) => {
+  const hasMin = typeof minPrice === "number";
+  const hasMax = typeof maxPrice === "number";
+  if (!hasMin && !hasMax) return;
+
+  const range = {};
+  if (hasMin) range.$gte = minPrice;
+  if (hasMax) range.$lte = maxPrice;
+
+  query.$and = query.$and || [];
+  query.$and.push({ $or: [{ newPrice: range }, { price: range }] });
+};
+
 const mapBookCard = (book) => ({
   id: book._id,
-  title: book.title,
-  price: book.newPrice,
+  title: getBookTitle(book),
+  price: getBookPrice(book),
   slug: book.slug,
-  coverImage: book.coverImage,
+  coverImage: getBookCover(book),
   category: book.category,
   rating: typeof book.rating === "number" ? book.rating : 0,
 });
@@ -223,14 +247,11 @@ const runFallbackAssistant = async ({ latestUserText = "", idle = false, req, la
   const { minPrice, maxPrice } = parsePriceBounds(lower);
   const query = {};
   if (category) query.category = new RegExp(`^${category}$`, "i");
-  if (typeof minPrice === "number" || typeof maxPrice === "number") {
-    query.newPrice = {};
-    if (typeof minPrice === "number") query.newPrice.$gte = minPrice;
-    if (typeof maxPrice === "number") query.newPrice.$lte = maxPrice;
-  }
-  if (!category && !query.newPrice) {
+  applyPriceFilter(query, minPrice, maxPrice);
+  if (!category && !(Array.isArray(query.$and) && query.$and.length > 0)) {
     query.$or = [
       { title: { $regex: latestUserText, $options: "i" } },
+      { name: { $regex: latestUserText, $options: "i" } },
       { description: { $regex: latestUserText, $options: "i" } },
       { category: { $regex: latestUserText, $options: "i" } },
     ];
@@ -322,15 +343,12 @@ router.post("/chat", optionalUserToken, async (req, res) => {
           const q = args.query.trim();
           query.$or = [
             { title: { $regex: q, $options: "i" } },
+            { name: { $regex: q, $options: "i" } },
             { description: { $regex: q, $options: "i" } },
             { category: { $regex: q, $options: "i" } },
           ];
         }
-        if (typeof args?.minPrice === "number" || typeof args?.maxPrice === "number") {
-          query.newPrice = {};
-          if (typeof args.minPrice === "number") query.newPrice.$gte = args.minPrice;
-          if (typeof args.maxPrice === "number") query.newPrice.$lte = args.maxPrice;
-        }
+        applyPriceFilter(query, args?.minPrice, args?.maxPrice);
         const books = await Book.find(query).sort({ trending: -1, createdAt: -1 }).limit(8);
         const cards = books.map(mapBookCard);
         productCards.push(...cards);
@@ -390,12 +408,14 @@ router.post("/chat", optionalUserToken, async (req, res) => {
         if (!selectedProduct) {
           result = { error: "I could not identify which product to add." };
         } else {
+          const selectedTitle = getBookTitle(selectedProduct);
+          const selectedPrice = getBookPrice(selectedProduct);
           result = {
-            message: `Would you like me to add ${selectedProduct.title} to your cart for Rs. ${selectedProduct.newPrice}?`,
+            message: `Would you like me to add ${selectedTitle} to your cart for Rs. ${selectedPrice}?`,
             pendingCartAction: {
               productId: selectedProduct._id,
-              productTitle: selectedProduct.title,
-              price: selectedProduct.newPrice,
+              productTitle: selectedTitle,
+              price: selectedPrice,
               quantity,
             },
           };

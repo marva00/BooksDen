@@ -9,6 +9,7 @@ import RevenueChart from './RevenueChart';
 const Dashboard = () => {
     const [loading, setLoading] = useState(true);
     const [data, setData] = useState({});
+  const [errorMessage, setErrorMessage] = useState('');
     // console.log(data)
     const navigate = useNavigate()
     useEffect(() => {
@@ -22,18 +23,28 @@ const Dashboard = () => {
                 })
 
                 setData(response.data);
-                setLoading(false);
             } catch (error) {
                 console.error('Error:', error);
+        const status = error?.response?.status;
+        if (status === 401 || status === 403) {
+          localStorage.removeItem('token');
+          navigate('/admin', { replace: true });
+          return;
+        }
+        const apiMessage = error?.response?.data?.message;
+        setErrorMessage(apiMessage || 'Failed to load admin dashboard data.');
+      } finally {
+        setLoading(false);
             }
         }
 
         fetchData();
-    }, []);
+  }, [navigate]);
 
     // console.log(data)
 
     if(loading) return <Loading/>
+    if(errorMessage) return <div className="text-red-600">{errorMessage}</div>
 
   return (
     <>

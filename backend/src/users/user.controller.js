@@ -1,15 +1,12 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('./user.model');
-
-const JWT_SECRET =
-  process.env.JWT_SECRET_KEY ||
-  'bc992a20cb6706f741433686be814e3df45e57ea1c2fc85f9dbb0ef7df12308a669bfa7c976368ff32e32f6541480ce9ec1b122242f9b1257ab669026aeaf16';
+const { jwtSecret } = require('../config/env');
 
 const normalizeUsername = (value) => (typeof value === 'string' ? value.trim().toLowerCase() : '');
 
 const signAuthToken = (user) =>
-  jwt.sign({ id: user._id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
+  jwt.sign({ id: user._id, username: user.username, role: user.role }, jwtSecret, { expiresIn: '1h' });
 
 const registerUser = async (req, res) => {
   const { username, password, role } = req.body;

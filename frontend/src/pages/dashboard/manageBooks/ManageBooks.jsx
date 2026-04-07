@@ -1,11 +1,10 @@
 import React from 'react'
 import { useDeleteBookMutation, useFetchAllBooksQuery } from '../../../redux/features/books/booksApi';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import Loading from '../../../components/Loading';
 
 const ManageBooks = () => {
-    const navigate = useNavigate();
-
-    const {data: books, refetch} = useFetchAllBooksQuery()
+    const {data: books = [], refetch, isLoading, isError} = useFetchAllBooksQuery()
 
     const [deleteBook] = useDeleteBookMutation()
 
@@ -22,10 +21,10 @@ const ManageBooks = () => {
         }
     };
 
-    // Handle navigating to Edit Book page
-    const handleEditClick = (id) => {
-        navigate(`dashboard/edit-book/${id}`);
-    };
+
+        if (isLoading) return <Loading />;
+        if (isError) return <div className="text-red-600">Failed to load books for management.</div>;
+
   return (
     <section className="py-1 bg-blueGray-50">
     <div className="w-full xl:w-8/12 mb-12 xl:mb-0 px-4 mx-auto mt-24">
@@ -66,19 +65,19 @@ const ManageBooks = () => {
                     <tbody>
                         {
                             books && books.map((book, index) => (
-                                <tr key={index} className="hover:bg-gray-50 transition-colors">
+                                <tr key={book?._id || index} className="hover:bg-gray-50 transition-colors">
                                 <th className="border-t-0 px-6 align-middle border-l-0 border-r-0 text-xs whitespace-nowrap p-4 text-left text-[#2C3333] ">
                                    {index + 1}
                                 </th>
                                 <td className="border-t-0 px-6 align-middle border-l-0 border-r-0 text-xs whitespace-nowrap p-4 ">
-                                    {book.title}
+                                    {book?.title || book?.name || 'Untitled Book'}
                                 </td>
                                 <td className="border-t-0 px-6 align-center border-l-0 border-r-0 text-xs whitespace-nowrap p-4">
                                   {book.category}
                                 </td>
                                 <td className="border-t-0 px-6 align-middle border-l-0 border-r-0 text-xs whitespace-nowrap p-4">
 
-                                    Rs. {book.newPrice}
+                                    Rs. {book?.newPrice ?? book?.price ?? 0}
                                 </td>
                                 <td className="border-t-0 px-6 align-middle border-l-0 border-r-0 text-xs whitespace-nowrap p-4 space-x-4">
 

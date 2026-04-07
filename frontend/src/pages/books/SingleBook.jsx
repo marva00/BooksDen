@@ -40,17 +40,17 @@ const SingleBook = () => {
   return (
     <div className="max-w-lg shadow-md p-5">
             <SEO
-              title={book?.seo?.metaTitle || `${book?.name} | Book Store`}
+                            title={book?.seo?.metaTitle || `${book?.title || book?.name || 'Book'} | Book Store`}
               metaDescription={book?.seo?.metaDescription || book?.description}
               keywords={book?.seo?.keywords || `${book?.category || ''}, books, bookstore`}
             />
-            <h1 className="text-2xl font-bold mb-6">{book.name}</h1>
+                        <h1 className="text-2xl font-bold mb-6">{book?.title || book?.name || 'Untitled Book'}</h1>
 
             <div className=''>
                 <div>
                     <img
-                        src={`${getImgUrl(book.coverImage)}`}
-                        alt={book.title}
+                        src={`${getImgUrl(book?.coverImage || book?.images?.[0] || 'book-1.png')}`}
+                        alt={book?.title || book?.name || 'Book cover'}
                         className="mb-8"
                     />
                 </div>

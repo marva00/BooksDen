@@ -6,11 +6,18 @@ const ordersApi = createApi({
     reducerPath: 'ordersApi',
     baseQuery: fetchBaseQuery({
         baseUrl: `${getBaseUrl()}/api/orders`,
-        credentials: 'include'
+        credentials: 'include',
+        prepareHeaders: (headers) => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                headers.set('Authorization', `Bearer ${token}`);
+            }
+            return headers;
+        }
     }),
     tagTypes: ['Orders'],
     endpoints: (builder) => ({
-        createOrder: (builder.mutation) ({
+        createOrder: builder.mutation({
             query: (newOrder) => ({
                 url: "/",
                 method: "POST",
@@ -18,13 +25,13 @@ const ordersApi = createApi({
                 credentials: 'include',
             })
         }),
-        getOrderByEmail: (builder.query) ({
+        getOrderByEmail: builder.query({
             query: (email) => ({
                 url: `/email/${email}`
             }),
             providesTags: ['Orders']
         }),
-        getOrderByUserId: (builder.query) ({
+        getOrderByUserId: builder.query({
             query: (userId) => ({
                 url: `/user/${userId}`
             }),

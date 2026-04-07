@@ -59,7 +59,7 @@ const BookCard = ({book}) => {
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <Link to={`/books/${book.slug || book._id}`} className="flex-1 min-w-0">
                           <h3 className="text-xl font-semibold hover:text-blue-600 line-clamp-2 min-h-[3.5rem]">
-                          {book?.title}
+                          {book?.title || book?.name || 'Untitled Book'}
                           </h3>
                       </Link>
                       <button

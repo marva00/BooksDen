@@ -4,20 +4,29 @@ import SelectField from './SelectField'
 import { useForm } from 'react-hook-form';
 import { useAddBookMutation } from '../../../redux/features/books/booksApi';
 import Swal from 'sweetalert2';
+import { getImgUrl } from '../../../utils/getImgUrl';
 
 const AddBook = () => {
-    const MIN_PRICE = 400;
-    const MAX_PRICE = 900;
     const { register, handleSubmit, formState: { errors }, reset } = useForm();
-    const [imageFile, setimageFile] = useState(null);
     const [addBook, {isLoading, isError}] = useAddBookMutation()
     const [imageFileName, setimageFileName] = useState('')
     const [imageDataUrl, setImageDataUrl] = useState('');
+  const [imagePreview, setImagePreview] = useState('');
     const onSubmit = async (data) => {
         const oldPrice = Number(data.oldPrice);
         const newPrice = Number(data.newPrice);
-        if (oldPrice < MIN_PRICE || oldPrice > MAX_PRICE || newPrice < MIN_PRICE || newPrice > MAX_PRICE) {
-          alert(`Please enter Old Price and New Price between Rs. ${MIN_PRICE} and Rs. ${MAX_PRICE}.`);
+        if (!Number.isFinite(oldPrice) || !Number.isFinite(newPrice) || oldPrice <= 0 || newPrice <= 0) {
+          alert('Please enter valid positive prices.');
+          return;
+        }
+
+        if (oldPrice < newPrice) {
+          alert('Old Price should be greater than or equal to New Price.');
+          return;
+        }
+
+        if (imageFileName && !imageDataUrl) {
+          alert('Please wait for the selected image to finish processing and try again.');
           return;
         }
  
@@ -28,8 +37,8 @@ const AddBook = () => {
             oldPrice,
             newPrice,
             slug: data.slug || '',
-            // Persist actual gallery image content so homepage can render it later.
-            coverImage: imageDataUrl || imageFileName || 'book-1.png'
+            // Persist uploaded image data so frontend can render it from API.
+            coverImage: imageDataUrl || 'book-1.png'
         }
         try {
             await addBook(newBookData).unwrap();
@@ -44,8 +53,8 @@ const AddBook = () => {
               });
               reset();
               setimageFileName('')
-              setimageFile(null);
               setImageDataUrl('');
+                setImagePreview('');
         } catch (error) {
             console.error(error);
             alert("Failed to add book. Please try again.")   
@@ -56,19 +65,19 @@ const AddBook = () => {
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if(file) {
-            setimageFile(file);
             setimageFileName(file.name);
             const reader = new FileReader();
             reader.onloadend = () => {
               if (typeof reader.result === 'string') {
                 setImageDataUrl(reader.result);
+                setImagePreview(reader.result);
               }
             };
             reader.readAsDataURL(file);
         } else {
-            setimageFile(null);
             setimageFileName('');
             setImageDataUrl('');
+            setImagePreview('');
         }
     }
   return (
@@ -174,6 +183,13 @@ const AddBook = () => {
         {/* Cover Image Upload */}
         <div className="mb-4">
           <label className="block text-sm font-semibold text-gray-700 mb-2">Cover Image</label>
+          {imagePreview && (
+            <img
+              src={getImgUrl(imagePreview)}
+              alt="Selected cover preview"
+              className="h-32 w-24 object-cover border rounded mb-2"
+            />
+          )}
           <input type="file" accept="image/*" onChange={handleFileChange} className="mb-2 w-full" />
           {imageFileName && <p className="text-sm text-gray-500">Selected: {imageFileName}</p>}
         </div>

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import InputField from '../addBook/InputField'
 import SelectField from '../addBook/SelectField'
 import { useForm } from 'react-hook-form';
@@ -6,15 +6,18 @@ import { useParams } from 'react-router-dom';
 import { useFetchBookByIdQuery, useUpdateBookMutation } from '../../../redux/features/books/booksApi';
 import Loading from '../../../components/Loading';
 import Swal from 'sweetalert2';
+import { getImgUrl } from '../../../utils/getImgUrl';
 
 const UpdateBook = () => {
-  const MIN_PRICE = 400;
-  const MAX_PRICE = 900;
   const { id } = useParams();
   const { data: bookData, isLoading, isError, refetch } = useFetchBookByIdQuery(id);
   // console.log(bookData)
   const [updateBook] = useUpdateBookMutation();
-  const { register, handleSubmit, setValue, reset } = useForm();
+  const { register, handleSubmit, setValue } = useForm();
+  const [imageFileName, setImageFileName] = useState('');
+  const [imageDataUrl, setImageDataUrl] = useState('');
+  const [imagePreview, setImagePreview] = useState('');
+
   useEffect(() => {
     if (bookData) {
       setValue('title', bookData.title);
@@ -27,15 +30,47 @@ const UpdateBook = () => {
       setValue('trending', bookData.trending);
       setValue('oldPrice', bookData.oldPrice);
       setValue('newPrice', bookData.newPrice);
-      setValue('coverImage', bookData.coverImage)
+      setImagePreview(bookData?.coverImage || bookData?.images?.[0] || 'book-1.png');
+      setImageDataUrl('');
+      setImageFileName('');
     }
   }, [bookData, setValue])
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setImageFileName('');
+      setImageDataUrl('');
+      setImagePreview(bookData?.coverImage || bookData?.images?.[0] || 'book-1.png');
+      return;
+    }
+
+    setImageFileName(file.name);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        setImageDataUrl(reader.result);
+        setImagePreview(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const onSubmit = async (data) => {
     const oldPrice = Number(data.oldPrice);
     const newPrice = Number(data.newPrice);
-    if (oldPrice < MIN_PRICE || oldPrice > MAX_PRICE || newPrice < MIN_PRICE || newPrice > MAX_PRICE) {
-      alert(`Please enter Old Price and New Price between Rs. ${MIN_PRICE} and Rs. ${MAX_PRICE}.`);
+    if (!Number.isFinite(oldPrice) || !Number.isFinite(newPrice) || oldPrice <= 0 || newPrice <= 0) {
+      alert('Please enter valid positive prices.');
+      return;
+    }
+
+    if (oldPrice < newPrice) {
+      alert('Old Price should be greater than or equal to New Price.');
+      return;
+    }
+
+    if (imageFileName && !imageDataUrl) {
+      alert('Please wait for the selected image to finish processing and try again.');
       return;
     }
 
@@ -50,7 +85,7 @@ const UpdateBook = () => {
       trending: data.trending,
       oldPrice,
       newPrice,
-      coverImage: data.coverImage || bookData.coverImage,
+      coverImage: imageDataUrl || bookData?.coverImage || bookData?.images?.[0] || 'book-1.png',
     };
     try {
       await updateBook({ id, ...updateBookData }).unwrap();
@@ -158,13 +193,21 @@ const UpdateBook = () => {
           register={register}
         />
 
-        <InputField
-          label="Cover Image URL"
-          name="coverImage"
-          type="text"
-          placeholder="Cover Image URL"
-          register={register}
-        />
+        <div className="mb-4">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Cover Image</label>
+          {imagePreview && (
+            <img
+              src={getImgUrl(imagePreview)}
+              alt="Book cover preview"
+              className="h-32 w-24 object-cover border rounded mb-2"
+            />
+          )}
+          <input type="file" accept="image/*" onChange={handleFileChange} className="mb-2 w-full" />
+          {imageFileName && <p className="text-sm text-gray-500">Selected: {imageFileName}</p>}
+          {!imageFileName && (
+            <p className="text-xs text-gray-500">Leave it unchanged to keep the current image.</p>
+          )}
+        </div>
 
         <button type="submit" className="w-full py-2 bg-blue-500 text-white font-bold rounded-md">
           Update Book
