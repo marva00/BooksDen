@@ -7,7 +7,10 @@
     "start": "node index.js",
     "start:dev": "nodemon index.js",
     "inventory:enrich": "node scripts/enrich-book-inventory.js",
-    "inventory:enrich:dry": "node scripts/enrich-book-inventory.js --dry-run"
+    "inventory:enrich:dry": "node scripts/enrich-book-inventory.js --dry-run",
+    "inventory:update-images": "node scripts/update-book-images.js",
+    "inventory:update-cover-links": "node scripts/update-book-cover-links.js",
+    "news:seed": "node scripts/seed-news.js"
   },
   "keywords": [],
   "author": "mamun",

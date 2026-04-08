@@ -1,9 +1,9 @@
-import React from 'react'
-import Banner from './Banner'
-import TopSellers from './TopSellers'
-import Recommened from './Recommened'
-import News from './News'
-import { useFetchAllBooksQuery } from '../../redux/features/books/booksApi'
+import React from 'react';
+import Banner from './Banner';
+import TopSellers from './TopSellers';
+import Recommened from './Recommened';
+import News from './News';
+import { useFetchAllBooksQuery } from '../../redux/features/books/booksApi';
 import { useLocation } from 'react-router-dom';
 import SEO from '../../components/SEO';
 
@@ -45,9 +45,10 @@ const Home = () => {
   // Keep fixed ranges for homepage sections.
   const topSellersBooks = filteredBooks.slice(TOP_SELLERS_RANGE.start, TOP_SELLERS_RANGE.end);
   const recommendedBooks = filteredBooks.slice(RECOMMENDED_RANGE.start, RECOMMENDED_RANGE.end);
+  const hasSearchResults = filteredBooks.length > 0;
 
   return (
-    <>
+    <div className="space-y-4 pb-6">
         <SEO
           title="Home | Book Store"
           metaDescription={
@@ -62,17 +63,33 @@ const Home = () => {
               .join(', ') || 'books, bookstore, top sellers, recommended'
           }
         />
-        <Banner/>
-        {searchTerm && (
-          <p className="mb-4 text-sm text-muted">
-            Showing results for: <span className="font-semibold text-text">{searchTerm}</span>
-          </p>
-        )}
-        <TopSellers books={topSellersBooks}/>
-        <Recommened books={recommendedBooks.length > 0 ? recommendedBooks : topSellersBooks}/>
-        <News/>
-    </>
-  )
-}
 
-export default Home
+        <Banner />
+
+        {searchTerm && (
+          <div
+            className="animate-fade-up rounded-2xl border border-cyan-100 bg-cyan-50/70 px-4 py-3 text-sm text-slate-700"
+            aria-live="polite"
+          >
+            Showing results for: <span className="font-bold">{searchTerm}</span>
+            <span className="ml-2 text-slate-500">({filteredBooks.length} matches)</span>
+          </div>
+        )}
+
+        {searchTerm && !hasSearchResults ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center text-sm text-slate-500">
+            No books matched your search yet. Try a different keyword.
+          </div>
+        ) : (
+          <>
+            <TopSellers books={topSellersBooks} />
+            <Recommened books={recommendedBooks.length > 0 ? recommendedBooks : topSellersBooks} />
+          </>
+        )}
+
+        <News />
+    </div>
+  );
+};
+
+export default Home;

@@ -41,58 +41,59 @@ const BookCard = ({book}) => {
         if (!currentUser?.id) return;
         dispatch(toggleWishlistItem(book));
     }
-    return (
-        <div className="rounded-lg border border-border bg-white transition-shadow duration-300 h-full shadow-none max-w-[22rem] mx-auto">
-            <div
-                className="flex flex-col sm:flex-row sm:items-stretch sm:min-h-[18rem] gap-4"
-            >
-                <div className="sm:w-44 sm:flex-shrink-0 border rounded-md overflow-hidden">
-                    <Link to={`/books/${book.slug || book._id}`}>
-                        <img
-                            src={imageSrc}
-                            alt=""
-                            onClick={() => trackProductClick(bookId)}
-                            onError={() => setImageSrc(fallbackImage)}
-                            className="w-full h-72 object-cover p-2 rounded-md cursor-pointer hover:scale-105 transition-all duration-200"
-                        />
-                    </Link>
-                </div>
+        return (
+            <article className="group relative flex h-full min-h-[31rem] w-full max-w-[22rem] flex-col rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-lg mx-auto">
+                        <button
+                            onClick={handleToggleWishlist}
+                            className="!bg-white/95 !text-slate-700 absolute right-5 top-5 z-10 rounded-full border border-slate-200 p-2 shadow-sm transition hover:!bg-white"
+                            title={currentUser?.id ? 'Toggle wishlist' : 'Login to wishlist'}
+                            aria-label="Toggle wishlist"
+                        >
+                            {isFavorite ? <HiHeart className="size-4 text-rose-500" /> : <HiOutlineHeart className="size-4" />}
+                        </button>
 
-                <div className="flex flex-col justify-between flex-1 min-w-0 py-1 pr-1">
-                  <div>
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <Link to={`/books/${book.slug || book._id}`} className="flex-1 min-w-0" onClick={() => trackProductClick(bookId)}>
-                          <h3 className="text-xl font-semibold hover:text-blue-600 line-clamp-2 min-h-[3.5rem]">
-                          {book?.title || book?.name || 'Untitled Book'}
-                          </h3>
-                      </Link>
-                      <button
-                        onClick={handleToggleWishlist}
-                        className="!bg-transparent !text-primary !p-0 !rounded-none hover:!bg-transparent shadow-none shrink-0"
-                        title={currentUser?.id ? "Toggle wishlist" : "Login to wishlist"}
-                      >
-                        {isFavorite ? <HiHeart className="text-primary size-5" /> : <HiOutlineHeart className="text-primary size-5" />}
-                      </button>
-                    </div>
-                    <p className="text-gray-600 mb-4 min-h-[3.5rem]">
-                      {description.length > 90 ? `${description.slice(0, 90)}...` : description}
-                    </p>
-                    <p className="font-medium mb-4">
-                        Rs. {newPrice} <span className="line-through font-normal ml-2">Rs. {oldPrice}</span>
-                    </p>
-                  </div>
-                    <div className="flex flex-col items-start gap-2">
-                    <button 
-                    onClick={() => handleAddToCart(book)}
-                    className="btn-primary px-6 space-x-1 flex items-center gap-1 whitespace-nowrap self-start">
-                        <FiShoppingCart className="" />
-                        <span className="whitespace-nowrap">Add to Cart</span>
-                    </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
+                        <Link to={`/books/${book.slug || book._id}`} className="block h-64 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                                <img
+                                        src={imageSrc}
+                                        alt={book?.title || book?.name || 'Book cover'}
+                                        onClick={() => trackProductClick(bookId)}
+                                        onError={() => setImageSrc(fallbackImage)}
+                                        className="h-64 w-full object-cover transition duration-500 group-hover:scale-105"
+                                />
+                        </Link>
+
+                        <div className="mt-4 flex flex-1 flex-col justify-between gap-3">
+                            <div>
+                                <Link to={`/books/${book.slug || book._id}`} onClick={() => trackProductClick(bookId)}>
+                                <h3 className="line-clamp-2 min-h-[3.4rem] text-lg font-bold text-slate-900 transition hover:text-cyan-700">
+                                            {book?.title || book?.name || 'Untitled Book'}
+                                        </h3>
+                                </Link>
+
+                            <p className="mt-2 line-clamp-3 min-h-[3.9rem] text-sm text-slate-600">
+                                    {description.length > 110 ? `${description.slice(0, 110)}...` : description || 'No description available.'}
+                                </p>
+                            </div>
+
+                            <div>
+                                <div className="mb-3 flex items-center gap-2">
+                                        <p className="text-base font-bold text-slate-900">Rs. {newPrice}</p>
+                                        {oldPrice > newPrice && (
+                                            <span className="text-xs font-medium text-slate-500 line-through">Rs. {oldPrice}</span>
+                                        )}
+                                </div>
+
+                                <button
+                                    onClick={() => handleAddToCart(book)}
+                                    className="!bg-slate-900 hover:!bg-slate-700 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white"
+                                >
+                                        <FiShoppingCart />
+                                        <span>Add to Cart</span>
+                                </button>
+                            </div>
+                        </div>
+                </article>
+        )
 }
 
 export default BookCard

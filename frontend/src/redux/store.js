@@ -4,6 +4,7 @@ import wishlistReducer from './features/wishlist/wishlistSlice'
 import booksApi from './features/books/booksApi'
 import ordersApi from './features/orders/ordersApi'
 import adminApi from './features/admin/adminApi'
+import newsApi from './features/news/newsApi'
 
 export const store = configureStore({
   reducer: {
@@ -12,7 +13,8 @@ export const store = configureStore({
     [booksApi.reducerPath]: booksApi.reducer,
     [ordersApi.reducerPath]: ordersApi.reducer,
     [adminApi.reducerPath]: adminApi.reducer,
+    [newsApi.reducerPath]: newsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(booksApi.middleware, ordersApi.middleware, adminApi.middleware),
+    getDefaultMiddleware().concat(booksApi.middleware, ordersApi.middleware, adminApi.middleware, newsApi.middleware),
 })

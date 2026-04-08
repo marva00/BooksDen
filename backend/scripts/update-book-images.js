@@ -13,6 +13,82 @@ const normalizeUrl = (url = "") => {
   return url.replace(/^http:\/\//i, "https://").trim();
 };
 
+const slugify = (value = "") =>
+  value
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "") || "book";
+
+const isWeakCover = (url = "") => {
+  const normalized = normalizeUrl(url);
+  if (!normalized) return true;
+  if (/^book-\d+\.png$/i.test(normalized)) return true;
+  if (normalized.startsWith("data:")) return true;
+  if (normalized.includes("picsum.photos")) return true;
+  if (normalized.includes("source.unsplash.com")) return true;
+  return false;
+};
+
+const FALLBACK_POOLS = {
+  business: [
+    "https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg?auto=compress&cs=tinysrgb&w=1200",
+    "https://images.pexels.com/photos/256455/pexels-photo-256455.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  ],
+  technology: [
+    "https://images.pexels.com/photos/1130980/pexels-photo-1130980.jpeg?auto=compress&cs=tinysrgb&w=1200",
+    "https://images.pexels.com/photos/46274/pexels-photo-46274.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  ],
+  fiction: [
+    "https://images.pexels.com/photos/694740/pexels-photo-694740.jpeg?auto=compress&cs=tinysrgb&w=1200",
+    "https://images.pexels.com/photos/1266808/pexels-photo-1266808.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  ],
+  horror: [
+    "https://images.pexels.com/photos/374716/pexels-photo-374716.jpeg?auto=compress&cs=tinysrgb&w=1200",
+    "https://images.pexels.com/photos/590493/pexels-photo-590493.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  ],
+  adventure: [
+    "https://images.pexels.com/photos/46274/pexels-photo-46274.jpeg?auto=compress&cs=tinysrgb&w=1200",
+    "https://images.pexels.com/photos/694740/pexels-photo-694740.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  ],
+  default: [
+    "https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg?auto=compress&cs=tinysrgb&w=1200",
+    "https://images.pexels.com/photos/256455/pexels-photo-256455.jpeg?auto=compress&cs=tinysrgb&w=1200",
+    "https://images.pexels.com/photos/1130980/pexels-photo-1130980.jpeg?auto=compress&cs=tinysrgb&w=1200",
+    "https://images.pexels.com/photos/1266808/pexels-photo-1266808.jpeg?auto=compress&cs=tinysrgb&w=1200",
+  ],
+};
+
+const normalizeCategory = (category = "") => {
+  const value = slugify(category).replace(/-/g, " ");
+  if (value.includes("tech")) return "technology";
+  if (value.includes("business")) return "business";
+  if (value.includes("horror")) return "horror";
+  if (value.includes("adventure")) return "adventure";
+  if (value.includes("fiction") || value.includes("mystery") || value.includes("romance")) return "fiction";
+  return "default";
+};
+
+const stableHash = (value = "") => {
+  let hash = 0;
+  const input = value.toString();
+  for (let index = 0; index < input.length; index += 1) {
+    hash = (hash << 5) - hash + input.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
+
+const pickInternetFallbackCover = (title, category) => {
+  const categoryKey = normalizeCategory(category);
+  const pool = FALLBACK_POOLS[categoryKey] || FALLBACK_POOLS.default;
+  const selectedIndex = stableHash(`${title}-${categoryKey}`) % pool.length;
+  return pool[selectedIndex];
+};
+
 const fetchGoogleBooksCover = async (title) => {
   const query = encodeURIComponent(`intitle:${title}`);
   const url = `https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=3&printType=books`;
@@ -92,7 +168,7 @@ const run = async () => {
 
   const collection = mongoose.connection.db.collection("books");
   const books = await collection
-    .find({}, { projection: { title: 1, name: 1, coverImage: 1, images: 1 } })
+    .find({}, { projection: { title: 1, name: 1, category: 1, coverImage: 1, images: 1 } })
     .toArray();
 
   if (!books.length) {
@@ -114,8 +190,12 @@ const run = async () => {
 
     if (!finalCover) {
       const existing = normalizeUrl(book?.coverImage || (Array.isArray(book?.images) ? book.images[0] : ""));
-      finalCover = existing;
-      fallbackExisting += existing ? 1 : 0;
+      if (existing && !isWeakCover(existing)) {
+        finalCover = existing;
+        fallbackExisting += 1;
+      } else {
+        finalCover = pickInternetFallbackCover(title, book?.category);
+      }
     }
 
     if (!finalCover) continue;
