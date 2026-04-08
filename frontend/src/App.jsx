@@ -56,7 +56,7 @@ function App() {
   return (
     <div className='min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#ecfeff_34%,#f8fafc_100%)]'>
       <Navbar />
-      <main className='min-h-screen max-w-screen-2xl mx-auto px-4 py-5 sm:py-8 font-primary'>
+      <main className='min-h-screen max-w-screen-2xl mx-auto px-5 py-5 sm:px-8 sm:py-8 lg:px-12 font-primary'>
         <Outlet />
       </main>
       <Footer />

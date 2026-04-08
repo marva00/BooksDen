@@ -1,6 +1,7 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
+const helmet = require("helmet");
 
 const mongoose = require("mongoose");
 require("dotenv").config();
@@ -16,6 +17,7 @@ const isAllowedOrigin = (origin) => {
 };
 
 // middleware
+app.use(helmet());
 // Allow larger payloads (e.g., base64 cover images from dashboard uploads).
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));

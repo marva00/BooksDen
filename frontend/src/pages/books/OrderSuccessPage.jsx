@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import SEO from '../../components/SEO';
 
 const OrderSuccessPage = () => {
   const location = useLocation();
@@ -8,6 +9,13 @@ const OrderSuccessPage = () => {
 
   return (
     <section className="max-w-2xl mx-auto py-14 px-4">
+      <SEO
+        title="Order Confirmed | Booksden"
+        metaDescription="Your order has been placed successfully on Booksden. Track your order status anytime."
+        keywords="order confirmed, track order, books purchase"
+        canonical="/order-success"
+        noIndex
+      />
       <div className="bg-white border border-border rounded-xl p-8 text-center shadow-sm">
         <h2 className="text-2xl font-semibold mb-2">Order Confirmed</h2>
         <p className="text-muted mb-4">Your order has been placed successfully.</p>

@@ -164,7 +164,7 @@ const Navbar = () => {
 
     return (
         <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-lg shadow-[0_14px_35px_-25px_rgba(15,23,42,0.55)]">
-            <nav className="mx-auto flex h-20 max-w-screen-2xl items-center justify-between gap-3 px-4 lg:px-6">
+            <nav className="mx-auto flex h-20 max-w-screen-2xl items-center justify-between gap-3 px-5 sm:px-8 lg:px-10">
                 <div className="flex items-center gap-3 lg:gap-6">
                     <Link
                         to="/"
@@ -287,7 +287,7 @@ const Navbar = () => {
             </nav>
 
             {isMobileMenuOpen && (
-                <div className="animate-fade-down border-t border-slate-200 bg-white px-4 pb-5 pt-3 lg:hidden">
+                <div className="animate-fade-down border-t border-slate-200 bg-white px-5 pb-5 pt-3 sm:px-8 lg:hidden">
                     <form onSubmit={handleSearchSubmit} className="mb-4">
                         <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                             <FiSearch className="size-4 text-slate-400" />

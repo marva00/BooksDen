@@ -128,6 +128,55 @@
   background: #eef2ff;
 }
 
+.swal-modern-popup {
+  border-radius: 1rem !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 22px 45px -28px rgb(15 23 42 / 0.55) !important;
+  padding: 1.25rem 1.2rem 1.1rem !important;
+}
+
+.swal-modern-title {
+  color: #0f172a !important;
+  font-size: 1.35rem !important;
+  font-weight: 800 !important;
+}
+
+.swal-modern-text {
+  color: #475569 !important;
+  font-size: 0.96rem !important;
+}
+
+.swal-modern-actions {
+  gap: 0.5rem !important;
+  margin-top: 1rem !important;
+}
+
+.swal-modern-confirm {
+  border: 0 !important;
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border-radius: 0.75rem !important;
+  padding: 0.62rem 1.15rem !important;
+  font-weight: 700 !important;
+}
+
+.swal-modern-confirm:hover {
+  background: #1e293b !important;
+}
+
+.swal-modern-cancel {
+  border: 1px solid #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #334155 !important;
+  border-radius: 0.75rem !important;
+  padding: 0.62rem 1.15rem !important;
+  font-weight: 700 !important;
+}
+
+.swal-modern-cancel:hover {
+  background: #f8fafc !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-down,
   .animate-fade-up,

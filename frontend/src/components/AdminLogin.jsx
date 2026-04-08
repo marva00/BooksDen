@@ -5,6 +5,7 @@ import axios from "axios"
 import getBaseUrl from '../utils/baseURL'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import SEO from './SEO'
 
 const AdminLogin = () => {
     const [message, setMessage] = useState("")
@@ -42,7 +43,14 @@ const AdminLogin = () => {
         }
       }
   return (
-    <div className='h-screen flex justify-center items-center '>
+    <div className='min-h-screen px-5 sm:px-8 flex justify-center items-center'>
+                <SEO
+                    title="Admin Login | Booksden"
+                    metaDescription="Admin access panel for managing Booksden inventory, orders, and users."
+                    keywords="booksden admin login, ecommerce dashboard"
+                    canonical="/admin"
+                    noIndex
+                />
         <div className='w-full max-w-sm mx-auto bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4'>
             <h2 className='text-xl font-semibold mb-4'>Admin Dashboard Login </h2>
 
