@@ -35,6 +35,10 @@ const adminApi = createApi({
       query: () => '/',
       providesTags: [{ type: 'AdminStats', id: 'SUMMARY' }],
     }),
+    getSalesAnalytics: builder.query({
+      query: (params = {}) => `/sales-analytics${buildQueryString(params)}`,
+      providesTags: [{ type: 'AdminStats', id: 'SALES_ANALYTICS' }],
+    }),
     getAdminOrders: builder.query({
       query: (params = {}) => `/orders${buildQueryString(params)}`,
       providesTags: (result) => {
@@ -95,6 +99,7 @@ const adminApi = createApi({
 
 export const {
   useGetAdminStatsQuery,
+  useGetSalesAnalyticsQuery,
   useGetAdminOrdersQuery,
   useGetAdminOrderQuery,
   useUpdateAdminOrderStatusMutation,

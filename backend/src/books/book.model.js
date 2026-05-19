@@ -67,6 +67,26 @@ const productSchema = new mongoose.Schema({
         type: String,
         default: 'admin',
     },
+    isbn: {
+        type: String,
+        trim: true,
+        default: '',
+    },
+    language: {
+        type: String,
+        trim: true,
+        default: 'English',
+    },
+    format: {
+        type: String,
+        trim: true,
+        default: '',
+    },
+    publisher: {
+        type: String,
+        trim: true,
+        default: '',
+    },
     slug: {
         type: String,
         required: true,
@@ -84,6 +104,14 @@ const productSchema = new mongoose.Schema({
             default: "",
         },
         keywords: {
+            type: String,
+            default: "",
+        },
+        ogTitle: {
+            type: String,
+            default: "",
+        },
+        ogDescription: {
             type: String,
             default: "",
         },

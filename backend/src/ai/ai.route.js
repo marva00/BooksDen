@@ -5,6 +5,7 @@ const mongoose = require("mongoose");
 const Book = require("../books/book.model");
 const Order = require("../orders/order.model");
 const { optionalUserToken } = require("../middleware/verifyUserToken");
+const verifyAdminToken = require("../middleware/verifyAdminToken");
 
 const router = express.Router();
 
@@ -25,16 +26,31 @@ let catalogCache = {
   brands: [],
 };
 
-const SYSTEM_PROMPT = `You are a Smart E-Commerce Assistant.
-Use tools to answer product and order questions accurately.
-If user is idle or asks for suggestions, recommend trending products.
-Before adding to cart, always ask for confirmation and then emit addToCart tool call after confirmation.
-For product discovery, support natural language filters for price, category, rating, and brand.
-For cart assistance, support add/remove actions, coupon application, and abandoned-cart reminders.
-For order tracking, always fetch live status with the getOrderItem tool instead of guessing.
-For FAQs, answer shipping info, return policy, and payment methods clearly.
-When users ask for recommendations, combine behavior signals, purchase history, trending products, and customers-also-bought style logic.
-Keep responses concise and friendly.`;
+const SYSTEM_PROMPT = `Role: You are the "BooksDen Smart Assistant." You are an expert e-commerce agent.
+
+Strict Operational Rules:
+
+No Random Messages: Do NOT mention the cart, coupons, or checkout UNLESS the user explicitly asks about them (e.g., "What is in my cart?" or "Remind me about my items").
+
+Fact-Checking: Only provide information based on the provided "Product Data" or "Order Data." If a user asks "What else should I buy?" and you have no data, suggest browsing a specific category like "Top Sellers" instead of saying you found nothing.
+
+Order Status: When asked about orders, check the order_id variable. If it is empty, ask the user for their Order ID. Do not make up a status.
+
+Tone: Professional, helpful, and concise. Use Markdown for lists.
+
+Data Handling:
+
+Current Cart State: {{cart_items}}
+
+Current User Info: {{user_profile}}
+
+Store Policies: [Insert your shipping/return policy text here]
+
+Response Protocol:
+
+If user asks a question unrelated to the store: "I am here to help with your book shopping. How can I assist with your order or search?"
+
+If user asks for a recommendation: Scan the current page category and suggest 2 similar titles from the database.`;
 
 const TOOLS = [
   {
@@ -1065,6 +1081,182 @@ const createCompletion = async (messages) => {
   const data = await response.json();
   return data?.choices?.[0]?.message;
 };
+
+const truncateText = (value = "", maxLength = 500) => {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 3).trim()}...`;
+};
+
+const cleanSeoText = (value = "", maxLength = 160) =>
+  truncateText(String(value || "").replace(/\s+/g, " ").trim(), maxLength);
+
+const normalizeKeywords = (value = "") => {
+  const keywords = Array.isArray(value) ? value : String(value || "").split(",");
+  const unique = [];
+
+  for (const keyword of keywords) {
+    const cleaned = cleanSeoText(keyword, 40).toLowerCase();
+    if (!cleaned || unique.includes(cleaned)) continue;
+    unique.push(cleaned);
+    if (unique.length >= 10) break;
+  }
+
+  return unique.join(", ");
+};
+
+const buildSeoFallback = (product = {}) => {
+  const title = cleanSeoText(product.title || product.name || "Book", 70);
+  const author = cleanSeoText(product.author || product.brand || "Booksden", 50);
+  const genre = cleanSeoText(product.genre || product.category || "books", 40);
+  const language = cleanSeoText(product.language || "", 40);
+  const format = cleanSeoText(product.format || "", 40);
+  const publisher = cleanSeoText(product.publisher || "", 80);
+  const description = cleanSeoText(product.description || "", 155);
+  const price = Number(product.newPrice ?? product.price);
+  const priceText = Number.isFinite(price) && price > 0 ? ` for Rs. ${price}` : "";
+  const metaTitle = cleanSeoText(`${title} by ${author} | ${genre} Book`, 60);
+  const detailText = [format, language, publisher ? `published by ${publisher}` : ""]
+    .filter(Boolean)
+    .join(", ");
+  const metaDescription = cleanSeoText(
+    description || `Buy ${title} by ${author}${priceText}. ${detailText ? `${detailText}. ` : ""}Explore this ${genre} book at Booksden.`,
+    155
+  );
+  const keywordSource = [
+    title,
+    author,
+    genre,
+    publisher,
+    product.isbn,
+    language,
+    format,
+    "book",
+    "bookstore",
+    "Booksden",
+  ];
+
+  return {
+    metaTitle,
+    metaDescription,
+    keywords: normalizeKeywords(keywordSource.join(", ")),
+    ogTitle: cleanSeoText(`${title} | Booksden`, 70),
+    ogDescription: metaDescription,
+  };
+};
+
+const parseSeoJson = (content = "") => {
+  try {
+    return JSON.parse(content);
+  } catch {
+    const match = content.match(/\{[\s\S]*\}/);
+    if (!match) return {};
+    try {
+      return JSON.parse(match[0]);
+    } catch {
+      return {};
+    }
+  }
+};
+
+const normalizeGeneratedSeo = (raw = {}, product = {}) => {
+  const fallback = buildSeoFallback(product);
+
+  return {
+    metaTitle: cleanSeoText(raw.metaTitle || raw.title || fallback.metaTitle, 60),
+    metaDescription: cleanSeoText(raw.metaDescription || raw.description || fallback.metaDescription, 155),
+    keywords: normalizeKeywords(raw.keywords || fallback.keywords),
+    ogTitle: cleanSeoText(raw.ogTitle || raw["og:title"] || fallback.ogTitle, 70),
+    ogDescription: cleanSeoText(
+      raw.ogDescription || raw["og:description"] || fallback.ogDescription,
+      155
+    ),
+  };
+};
+
+const createSeoCompletion = async (product) => {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      temperature: 0.35,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You generate concise, factual e-commerce SEO metadata for bookstore product pages. Use book-specific search intent: title, author, genre/category, ISBN, language, format, publisher, description, and price. Prioritize keywords a shopper would search on Google. Do not invent awards, availability, editions, or claims not present in the product data. Return only valid JSON with keys: metaTitle, metaDescription, keywords, ogTitle, ogDescription.",
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            product,
+            rules: {
+              metaTitle: "Max 60 characters. Include the book title and author when possible. Add genre only if it fits naturally.",
+              metaDescription: "Max 155 characters. Mention title, author, genre, and one useful detail such as format, language, publisher, ISBN, or price when provided.",
+              keywords: "Comma-separated list, 6 to 10 relevant search terms. Include title, author, genre, ISBN, publisher, language, and format only when present.",
+              ogTitle: "Max 70 characters. Social-share friendly, factual, and centered on title plus author.",
+              ogDescription: "Max 155 characters. Social-share friendly and factual, using the richest available book details.",
+            },
+          }),
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || "OpenAI SEO request failed");
+  }
+
+  const data = await response.json();
+  const content = data?.choices?.[0]?.message?.content || "";
+  return parseSeoJson(content);
+};
+
+router.post("/seo-tags", verifyAdminToken, async (req, res) => {
+  const product = req.body?.product && typeof req.body.product === "object" ? req.body.product : req.body || {};
+  const safeProduct = {
+    title: cleanSeoText(product.title || product.name, 120),
+    name: cleanSeoText(product.name || product.title, 120),
+    author: cleanSeoText(product.author || product.brand, 80),
+    brand: cleanSeoText(product.brand || product.author, 80),
+    genre: cleanSeoText(product.genre || product.category, 80),
+    category: cleanSeoText(product.category || product.genre, 80),
+    description: truncateText(product.description || "", 1200),
+    price: product.price,
+    oldPrice: product.oldPrice,
+    newPrice: product.newPrice,
+    isbn: cleanSeoText(product.isbn, 40),
+    publisher: cleanSeoText(product.publisher, 80),
+    language: cleanSeoText(product.language, 40),
+    format: cleanSeoText(product.format, 40),
+    slug: cleanSeoText(product.slug, 120),
+  };
+
+  if (!safeProduct.title && !safeProduct.description) {
+    return res.status(400).json({ message: "Please provide at least a title or description to generate SEO tags." });
+  }
+
+  try {
+    const generated = OPENAI_API_KEY ? await createSeoCompletion(safeProduct) : buildSeoFallback(safeProduct);
+    return res.status(200).json({
+      seo: normalizeGeneratedSeo(generated, safeProduct),
+      source: OPENAI_API_KEY ? "ai" : "fallback",
+    });
+  } catch (error) {
+    console.error("AI SEO tag generation failed", error);
+    return res.status(200).json({
+      seo: normalizeGeneratedSeo(buildSeoFallback(safeProduct), safeProduct),
+      source: "fallback",
+      warning: "AI generation failed, so fallback SEO tags were created.",
+    });
+  }
+});
 
 router.get("/suggestions", async (req, res) => {
   try {

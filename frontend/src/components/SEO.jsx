@@ -23,6 +23,8 @@ const SEO = ({
   keywords,
   canonical,
   ogType = 'website',
+  ogTitle,
+  ogDescription,
   ogImage,
   noIndex = false,
 }) => {
@@ -30,6 +32,8 @@ const SEO = ({
   const safeDescription =
     metaDescription || description || 'Discover, manage, and explore books in our online store.';
   const safeKeywords = keywords || 'books, bookstore, online books';
+  const safeOgTitle = ogTitle || safeTitle;
+  const safeOgDescription = ogDescription || safeDescription;
   const safeCanonical = buildCanonical(canonical);
   const safeOgImage = ogImage || '/book-1.png';
   const robots = noIndex ? 'noindex, nofollow' : 'index, follow';
@@ -39,8 +43,8 @@ const SEO = ({
       <title>{safeTitle}</title>
       <meta name="description" content={safeDescription} data-rh="true" />
       <meta name="robots" content={robots} />
-      <meta property="og:description" content={safeDescription} />
-      <meta property="og:title" content={safeTitle} />
+      <meta property="og:description" content={safeOgDescription} />
+      <meta property="og:title" content={safeOgTitle} />
       <meta property="og:type" content={ogType} />
       <meta property="og:site_name" content={SITE_NAME} />
       <meta property="og:image" content={safeOgImage} />
@@ -56,4 +60,3 @@ const SEO = ({
 };
 
 export default SEO;
-

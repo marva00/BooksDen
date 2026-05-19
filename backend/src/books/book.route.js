@@ -1,6 +1,6 @@
 const express = require('express');
 const Product = require('./book.model');
-const { postAProduct, getAllProducts, getSingleProduct, getSingleProductBySlug, UpdateProduct, deleteAProduct, seedDummyBooks, backfillBookSlugs, enrichBookInventory } = require('./book.controller');
+const { postAProduct, searchProducts, getAllProducts, getSingleProduct, getSingleProductBySlug, UpdateProduct, deleteAProduct, seedDummyBooks, backfillBookSlugs, enrichBookInventory } = require('./book.controller');
 const verifyAdminToken = require('../middleware/verifyAdminToken');
 const router =  express.Router();
 
@@ -24,6 +24,9 @@ router.post("/enrich-inventory", verifyAdminToken, enrichBookInventory);
 
 // get all products
 router.get("/", getAllProducts);
+
+// lightweight inventory search for live suggestions
+router.get("/search", searchProducts);
 
 // single product endpoint by slug
 router.get("/slug/:slug", getSingleProductBySlug);

@@ -12,6 +12,8 @@ const slugify = (value = "") =>
         .replace(/-+/g, "-")
         .replace(/^-|-$/g, "");
 
+const escapeRegex = (value = "") => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const toFiniteNumber = (value) => {
     const numberValue = Number(value);
     return Number.isFinite(numberValue) ? numberValue : undefined;
@@ -35,8 +37,10 @@ const normalizeSeoPayload = (body = {}) => {
     const metaTitle = pickFirstString(seoFromObject.metaTitle, body.seoTitle, body.metaTitle);
     const metaDescription = pickFirstString(seoFromObject.metaDescription, body.metaDescription);
     const keywords = pickFirstString(seoFromObject.keywords, body.keywords);
+    const ogTitle = pickFirstString(seoFromObject.ogTitle, body.ogTitle);
+    const ogDescription = pickFirstString(seoFromObject.ogDescription, body.ogDescription);
 
-    if (!metaTitle && !metaDescription && !keywords) {
+    if (!metaTitle && !metaDescription && !keywords && !ogTitle && !ogDescription) {
         return undefined;
     }
 
@@ -44,6 +48,8 @@ const normalizeSeoPayload = (body = {}) => {
         metaTitle: metaTitle || "",
         metaDescription: metaDescription || "",
         keywords: keywords || "",
+        ogTitle: ogTitle || "",
+        ogDescription: ogDescription || "",
     };
 };
 
@@ -51,6 +57,8 @@ const mergeSeoPayload = (preferredSeo = {}, fallbackSeo = {}) => ({
     metaTitle: pickFirstString(preferredSeo?.metaTitle, fallbackSeo?.metaTitle) || "",
     metaDescription: pickFirstString(preferredSeo?.metaDescription, fallbackSeo?.metaDescription) || "",
     keywords: pickFirstString(preferredSeo?.keywords, fallbackSeo?.keywords) || "",
+    ogTitle: pickFirstString(preferredSeo?.ogTitle, fallbackSeo?.ogTitle) || "",
+    ogDescription: pickFirstString(preferredSeo?.ogDescription, fallbackSeo?.ogDescription) || "",
 });
 
 const normalizeBookPayload = (body = {}, options = {}) => {
@@ -124,6 +132,26 @@ const normalizeBookPayload = (body = {}, options = {}) => {
         payload.author = author;
     }
 
+    const isbn = pickFirstString(body.isbn);
+    if (isbn !== undefined) {
+        payload.isbn = isbn;
+    }
+
+    const language = pickFirstString(body.language);
+    if (language !== undefined) {
+        payload.language = language;
+    }
+
+    const format = pickFirstString(body.format);
+    if (format !== undefined) {
+        payload.format = format;
+    }
+
+    const publisher = pickFirstString(body.publisher);
+    if (publisher !== undefined) {
+        payload.publisher = publisher;
+    }
+
     const seo = normalizeSeoPayload(body);
     if (seo) {
         payload.seo = seo;
@@ -170,14 +198,22 @@ const toClientBook = (productDoc) => {
         images: normalizedImages,
         trending: !!raw.trending,
         brand,
+        isbn: raw.isbn || "",
+        language: raw.language || "",
+        format: raw.format || "",
+        publisher: raw.publisher || "",
         seo: {
             metaTitle: seo.metaTitle || "",
             metaDescription: seo.metaDescription || "",
             keywords: seo.keywords || "",
+            ogTitle: seo.ogTitle || "",
+            ogDescription: seo.ogDescription || "",
         },
         seoTitle: seo.metaTitle || "",
         metaDescription: seo.metaDescription || "",
         keywords: seo.keywords || "",
+        ogTitle: seo.ogTitle || "",
+        ogDescription: seo.ogDescription || "",
     };
 };
 
@@ -236,6 +272,58 @@ const postAProduct = async (req, res) => {
     } catch (error) {
         console.error("Error creating product", error);
         return res.status(400).send({ message: error?.message || "Failed to create product" });
+    }
+}
+
+const searchProducts = async (req, res) => {
+    try {
+        const search = String(req.query.search || "").trim();
+        if (search.length < 2) {
+            return res.status(200).send([]);
+        }
+
+        const requestedLimit = Number(req.query.limit);
+        const limit = Number.isFinite(requestedLimit)
+            ? Math.min(Math.max(Math.floor(requestedLimit), 1), 20)
+            : 8;
+
+        const tokens = search
+            .split(/\s+/)
+            .map((token) => token.trim())
+            .filter(Boolean)
+            .slice(0, 6);
+
+        const tokenClauses = tokens.map((token) => {
+            const pattern = new RegExp(escapeRegex(token), "i");
+            return {
+                $or: [
+                    { title: pattern },
+                    { name: pattern },
+                    { description: pattern },
+                    { category: pattern },
+                    { author: pattern },
+                    { brand: pattern },
+                    { isbn: pattern },
+                    { language: pattern },
+                    { format: pattern },
+                    { publisher: pattern },
+                    { slug: pattern },
+                    { "seo.keywords": pattern },
+                ],
+            };
+        });
+
+        const query = tokenClauses.length > 0 ? { $and: tokenClauses } : {};
+
+        const products = await Product.find(query)
+            .sort({ trending: -1, createdAt: -1 })
+            .limit(limit)
+            .lean();
+
+        return res.status(200).send(products.map((product) => toClientBook(product)));
+    } catch (error) {
+        console.error("Error searching products", error);
+        return res.status(500).send({ message: "Failed to search products" });
     }
 }
 
@@ -684,6 +772,7 @@ const enrichBookInventory = async (req, res) => {
 
 module.exports = {
     postAProduct,
+    searchProducts,
     getAllProducts,
     getSingleProduct,
     getSingleProductBySlug,

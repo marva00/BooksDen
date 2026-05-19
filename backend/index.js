@@ -7,6 +7,19 @@ const mongoose = require("mongoose");
 require("dotenv").config();
 const { corsOrigins, mongoUri, port } = require("./src/config/env");
 
+let mongoConnectionPromise = null;
+
+const connectToMongo = async () => {
+  if (mongoose.connection.readyState === 1) return mongoose.connection;
+  if (!mongoConnectionPromise) {
+    mongoConnectionPromise = mongoose.connect(mongoUri).then((connection) => {
+      console.log("Mongodb connected successfully!");
+      return connection;
+    });
+  }
+  return mongoConnectionPromise;
+};
+
 // Return fresh JSON payloads for API calls to avoid 304/empty-body issues with client caches.
 app.set("etag", false);
 
@@ -35,6 +48,16 @@ app.use("/api", (_req, res, next) => {
   next();
 });
 
+app.use(async (_req, res, next) => {
+  try {
+    await connectToMongo();
+    next();
+  } catch (error) {
+    console.error("Failed to connect to MongoDB", error);
+    res.status(500).json({ message: "Database connection failed." });
+  }
+});
+
 // routes
 const bookRoutes = require('./src/books/book.route');
 const orderRoutes = require("./src/orders/order.route")
@@ -56,8 +79,7 @@ app.get("/", (req, res) => {
 
 const startServer = async () => {
   try {
-    await mongoose.connect(mongoUri);
-    console.log("Mongodb connected successfully!");
+    await connectToMongo();
     app.listen(port, () => {
       console.log(`Example app listening on port ${port}`);
     });
@@ -67,4 +89,8 @@ const startServer = async () => {
   }
 };
 
-startServer();
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = app;

@@ -7,6 +7,16 @@ const verifyAdminToken = require("../middleware/verifyAdminToken");
 const router = express.Router();
 
 const ORDER_STATUSES = ["pending", "processing", "shipped", "delivered"];
+const SALES_RANGE_OPTIONS = new Set(["7d", "30d", "3m", "1y"]);
+const CATEGORY_PERIOD_OPTIONS = new Set([
+    "current-month",
+    "last-month",
+    "spring",
+    "summer",
+    "autumn",
+    "winter",
+    "all",
+]);
 
 const escapeRegex = (value = "") => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -14,6 +24,222 @@ const toPositiveInt = (value, fallback, max = 100) => {
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
     return Math.min(max, Math.floor(parsed));
+};
+
+const startOfDay = (date) => {
+    const next = new Date(date);
+    next.setHours(0, 0, 0, 0);
+    return next;
+};
+
+const addDays = (date, days) => {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+    return next;
+};
+
+const addMonths = (date, months) => {
+    const next = new Date(date);
+    next.setMonth(next.getMonth() + months);
+    return next;
+};
+
+const formatDateKey = (date) => date.toISOString().slice(0, 10);
+
+const formatMonthKey = (date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+const getWeekStart = (date) => {
+    const next = startOfDay(date);
+    const day = next.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    next.setDate(next.getDate() + diff);
+    return next;
+};
+
+const getSalesRangeConfig = (rangeValue = "30d") => {
+    const range = SALES_RANGE_OPTIONS.has(rangeValue) ? rangeValue : "30d";
+    const end = new Date();
+    const today = startOfDay(end);
+
+    if (range === "7d") {
+        const start = addDays(today, -6);
+        const previousStart = addDays(start, -7);
+        return { range, start, end, previousStart, previousEnd: start, granularity: "day", steps: 7 };
+    }
+
+    if (range === "3m") {
+        const start = addMonths(today, -3);
+        const previousStart = addMonths(start, -3);
+        return { range, start, end, previousStart, previousEnd: start, granularity: "week", steps: 13 };
+    }
+
+    if (range === "1y") {
+        const start = addMonths(today, -11);
+        start.setDate(1);
+        const previousStart = addMonths(start, -12);
+        return { range, start, end, previousStart, previousEnd: start, granularity: "month", steps: 12 };
+    }
+
+    const start = addDays(today, -29);
+    const previousStart = addDays(start, -30);
+    return { range, start, end, previousStart, previousEnd: start, granularity: "day", steps: 30 };
+};
+
+const getSeriesLabels = ({ start, granularity, steps }) => {
+    return Array.from({ length: steps }, (_item, index) => {
+        if (granularity === "month") {
+            return formatMonthKey(addMonths(start, index));
+        }
+        if (granularity === "week") {
+            return formatDateKey(addDays(getWeekStart(start), index * 7));
+        }
+        return formatDateKey(addDays(start, index));
+    });
+};
+
+const getBucketKey = (date, granularity) => {
+    if (granularity === "month") return formatMonthKey(date);
+    if (granularity === "week") return formatDateKey(getWeekStart(date));
+    return formatDateKey(date);
+};
+
+const sumOrderItems = (order) => {
+    if (Array.isArray(order.items) && order.items.length > 0) {
+        return order.items.map((item) => ({
+            productId: item.productId,
+            title: item.title || "",
+            quantity: Math.max(1, Number(item.quantity) || 1),
+            revenue: Math.max(0, Number(item.price) || 0) * Math.max(1, Number(item.quantity) || 1),
+        }));
+    }
+
+    const productIds = Array.isArray(order.productIds) ? order.productIds : [];
+    if (productIds.length === 0) return [];
+    const fallbackPrice = Math.max(0, Number(order.totalPrice) || 0) / productIds.length;
+    return productIds.map((productId) => ({
+        productId,
+        title: "",
+        quantity: 1,
+        revenue: fallbackPrice,
+    }));
+};
+
+const getMonthBounds = (monthOffset = 0) => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + monthOffset + 1, 1);
+    return { start, end };
+};
+
+const getCategoryPeriodBounds = (period = "current-month") => {
+    const normalized = CATEGORY_PERIOD_OPTIONS.has(period) ? period : "current-month";
+    if (normalized === "all") return {};
+    if (normalized === "last-month") return getMonthBounds(-1);
+    if (normalized === "current-month") return getMonthBounds(0);
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const seasonMonths = {
+        spring: [2, 5],
+        summer: [5, 8],
+        autumn: [8, 11],
+        winter: [11, 14],
+    };
+    const [startMonth, endMonth] = seasonMonths[normalized] || seasonMonths.spring;
+    const startYear = normalized === "winter" && now.getMonth() < 2 ? year - 1 : year;
+    return {
+        start: new Date(startYear, startMonth, 1),
+        end: new Date(startYear, endMonth, 1),
+    };
+};
+
+const buildOrderDateQuery = (start, end) => {
+    if (!start && !end) return {};
+    const createdAt = {};
+    if (start) createdAt.$gte = start;
+    if (end) createdAt.$lt = end;
+    return { createdAt };
+};
+
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+const getLast12MonthKeys = () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    return Array.from({ length: 12 }, (_item, index) => {
+        const date = addMonths(start, index);
+        return {
+            key: formatMonthKey(date),
+            label: date.toLocaleString("en-US", { month: "short" }),
+        };
+    });
+};
+
+const buildSeasonalInsights = (orders = [], bookMap = new Map()) => {
+    const monthYearRevenue = new Map();
+    const last12Months = getLast12MonthKeys();
+    const categoryMonthStats = new Map();
+    const categories = new Set();
+
+    for (const order of orders) {
+        const createdAt = new Date(order.createdAt);
+        if (Number.isNaN(createdAt.getTime())) continue;
+
+        const monthIndex = createdAt.getMonth();
+        const yearMonthKey = `${createdAt.getFullYear()}-${String(monthIndex + 1).padStart(2, "0")}`;
+        const revenue = Number(order.totalPrice) || 0;
+        monthYearRevenue.set(yearMonthKey, (monthYearRevenue.get(yearMonthKey) || 0) + revenue);
+
+        if (last12Months.some((month) => month.key === yearMonthKey)) {
+            for (const item of sumOrderItems(order)) {
+                const book = item.productId ? bookMap.get(String(item.productId)) : null;
+                const category = (book?.category || "uncategorized").toString().trim() || "uncategorized";
+                categories.add(category);
+
+                const categoryKey = `${category}:${yearMonthKey}`;
+                const current = categoryMonthStats.get(categoryKey) || 0;
+                categoryMonthStats.set(categoryKey, current + item.revenue);
+            }
+        }
+    }
+
+    const revenueByMonth = MONTH_LABELS.map((label, monthIndex) => {
+        const matchingValues = [...monthYearRevenue.entries()]
+            .filter(([key]) => Number(key.slice(5, 7)) === monthIndex + 1)
+            .map((entry) => entry[1]);
+
+        const historicalAverage =
+            matchingValues.length > 0
+                ? matchingValues.reduce((sum, value) => sum + value, 0) / matchingValues.length
+                : 0;
+
+        return {
+            month: label,
+            monthIndex,
+            historicalAverage,
+        };
+    });
+
+    const maxAverage = Math.max(1, ...revenueByMonth.map((item) => item.historicalAverage));
+    const heatmap = revenueByMonth.map((item) => ({
+        ...item,
+        intensity: Math.min(1, Math.max(0.12, item.historicalAverage / maxAverage)),
+    }));
+
+    const sortedCategories = [...categories].sort().slice(0, 5);
+
+    return {
+        heatmap,
+        monthlyCategoryTrends: {
+            labels: last12Months.map((month) => month.label),
+            categories: sortedCategories,
+            series: sortedCategories.map((category) => ({
+                category,
+                data: last12Months.map((month) => categoryMonthStats.get(`${category}:${month.key}`) || 0),
+            })),
+        },
+    };
 };
 
 const buildOrderTimeline = (status = "pending") => {
@@ -101,6 +327,146 @@ router.get("/", verifyAdminToken, async (_req, res) => {
     } catch (error) {
         console.error("Error fetching admin stats:", error);
         return res.status(500).json({ message: "Failed to fetch admin stats" });
+    }
+});
+
+router.get("/sales-analytics", verifyAdminToken, async (req, res) => {
+    try {
+        const rangeConfig = getSalesRangeConfig((req.query.range || "30d").toString());
+        const categoryPeriod = (req.query.categoryPeriod || "current-month").toString();
+        const categoryBounds = getCategoryPeriodBounds(categoryPeriod);
+        const currentMonthBounds = getMonthBounds(0);
+
+        const [monthOrders, rangeOrders, categoryOrders, allOrders, books] = await Promise.all([
+            Order.find(buildOrderDateQuery(currentMonthBounds.start, currentMonthBounds.end)).lean(),
+            Order.find(buildOrderDateQuery(rangeConfig.previousStart, rangeConfig.end)).lean(),
+            Order.find(buildOrderDateQuery(categoryBounds.start, categoryBounds.end)).lean(),
+            Order.find({}).lean(),
+            Book.find(
+                {},
+                {
+                    title: 1,
+                    name: 1,
+                    author: 1,
+                    brand: 1,
+                    category: 1,
+                    stock: 1,
+                    newPrice: 1,
+                    price: 1,
+                }
+            ).lean(),
+        ]);
+
+        const bookMap = new Map(books.map((book) => [String(book._id), book]));
+        const seasonalInsights = buildSeasonalInsights(allOrders, bookMap);
+
+        const monthRevenue = monthOrders.reduce((sum, order) => sum + (Number(order.totalPrice) || 0), 0);
+        const monthOrderCount = monthOrders.length;
+        const monthProductStats = new Map();
+
+        for (const order of monthOrders) {
+            for (const item of sumOrderItems(order)) {
+                const key = String(item.productId || item.title || "unknown");
+                const current = monthProductStats.get(key) || {
+                    productId: item.productId,
+                    title: item.title,
+                    unitsSold: 0,
+                };
+                current.unitsSold += item.quantity;
+                if (!current.title && item.title) current.title = item.title;
+                monthProductStats.set(key, current);
+            }
+        }
+
+        const bestSeller = [...monthProductStats.values()].sort((a, b) => b.unitsSold - a.unitsSold)[0];
+        const bestSellerBook = bestSeller?.productId ? bookMap.get(String(bestSeller.productId)) : null;
+
+        const labels = getSeriesLabels(rangeConfig);
+        const previousLabels = getSeriesLabels({
+            start: rangeConfig.previousStart,
+            granularity: rangeConfig.granularity,
+            steps: rangeConfig.steps,
+        });
+        const currentSalesByBucket = new Map(labels.map((label) => [label, 0]));
+        const previousSalesByBucket = new Map(previousLabels.map((label) => [label, 0]));
+
+        for (const order of rangeOrders) {
+            const createdAt = new Date(order.createdAt);
+            const revenue = Number(order.totalPrice) || 0;
+            if (createdAt >= rangeConfig.start && createdAt <= rangeConfig.end) {
+                const key = getBucketKey(createdAt, rangeConfig.granularity);
+                currentSalesByBucket.set(key, (currentSalesByBucket.get(key) || 0) + revenue);
+            } else if (createdAt >= rangeConfig.previousStart && createdAt < rangeConfig.previousEnd) {
+                const key = getBucketKey(createdAt, rangeConfig.granularity);
+                previousSalesByBucket.set(key, (previousSalesByBucket.get(key) || 0) + revenue);
+            }
+        }
+
+        const topProductStats = new Map();
+        for (const order of rangeOrders.filter((order) => new Date(order.createdAt) >= rangeConfig.start)) {
+            for (const item of sumOrderItems(order)) {
+                const key = String(item.productId || item.title || "unknown");
+                const book = item.productId ? bookMap.get(String(item.productId)) : null;
+                const current = topProductStats.get(key) || {
+                    productId: item.productId || "",
+                    title: book?.title || book?.name || item.title || "Unknown Book",
+                    author: book?.author || book?.brand || "Unknown Author",
+                    category: book?.category || "uncategorized",
+                    unitsSold: 0,
+                    revenueGenerated: 0,
+                    stockRemaining: Number(book?.stock ?? 0),
+                };
+                current.unitsSold += item.quantity;
+                current.revenueGenerated += item.revenue;
+                topProductStats.set(key, current);
+            }
+        }
+
+        const categoryStats = new Map();
+        for (const order of categoryOrders) {
+            for (const item of sumOrderItems(order)) {
+                const book = item.productId ? bookMap.get(String(item.productId)) : null;
+                const category = (book?.category || "uncategorized").toString().trim() || "uncategorized";
+                const current = categoryStats.get(category) || {
+                    category,
+                    unitsSold: 0,
+                    revenueGenerated: 0,
+                };
+                current.unitsSold += item.quantity;
+                current.revenueGenerated += item.revenue;
+                categoryStats.set(category, current);
+            }
+        }
+
+        return res.status(200).json({
+            filters: {
+                range: rangeConfig.range,
+                categoryPeriod: CATEGORY_PERIOD_OPTIONS.has(categoryPeriod) ? categoryPeriod : "current-month",
+                granularity: rangeConfig.granularity,
+            },
+            kpis: {
+                totalRevenueThisMonth: monthRevenue,
+                totalOrdersThisMonth: monthOrderCount,
+                averageOrderValue: monthOrderCount > 0 ? monthRevenue / monthOrderCount : 0,
+                bestSellingBook: {
+                    title: bestSellerBook?.title || bestSellerBook?.name || bestSeller?.title || "No sales yet",
+                    unitsSold: bestSeller?.unitsSold || 0,
+                },
+            },
+            salesOverTime: {
+                labels,
+                current: labels.map((label) => currentSalesByBucket.get(label) || 0),
+                previous: previousLabels.map((label) => previousSalesByBucket.get(label) || 0),
+            },
+            topSellingProducts: [...topProductStats.values()].sort((a, b) => b.unitsSold - a.unitsSold),
+            categoryPerformance: [...categoryStats.values()].sort(
+                (a, b) => b.revenueGenerated - a.revenueGenerated
+            ),
+            seasonalInsights,
+        });
+    } catch (error) {
+        console.error("Error fetching sales analytics:", error);
+        return res.status(500).json({ message: "Failed to fetch sales analytics." });
     }
 });
 

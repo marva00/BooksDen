@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import InputField from './InputField';
 import SelectField from './SelectField';
 import { useForm } from 'react-hook-form';
 import { useAddBookMutation } from '../../../redux/features/books/booksApi';
 import Swal from 'sweetalert2';
 import { getImgUrl } from '../../../utils/getImgUrl';
+import getBaseUrl from '../../../utils/baseURL';
 
 const CATEGORY_OPTIONS = [
   { value: '', label: 'Choose a category' },
@@ -15,6 +16,24 @@ const CATEGORY_OPTIONS = [
   { value: 'adventure', label: 'Adventure' },
 ];
 
+const LANGUAGE_OPTIONS = [
+  { value: '', label: 'Choose a language' },
+  { value: 'English', label: 'English' },
+  { value: 'Urdu', label: 'Urdu' },
+  { value: 'Arabic', label: 'Arabic' },
+  { value: 'Hindi', label: 'Hindi' },
+  { value: 'French', label: 'French' },
+  { value: 'Spanish', label: 'Spanish' },
+];
+
+const FORMAT_OPTIONS = [
+  { value: '', label: 'Choose a format' },
+  { value: 'Paperback', label: 'Paperback' },
+  { value: 'Hardcover', label: 'Hardcover' },
+  { value: 'Ebook', label: 'Ebook' },
+  { value: 'Audiobook', label: 'Audiobook' },
+];
+
 const formatCurrency = (value) => `Rs. ${Number(value || 0).toLocaleString()}`;
 
 const AddBook = () => {
@@ -22,6 +41,7 @@ const AddBook = () => {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
     reset,
   } = useForm();
@@ -30,15 +50,30 @@ const AddBook = () => {
   const [imageFileName, setImageFileName] = useState('');
   const [imageDataUrl, setImageDataUrl] = useState('');
   const [imagePreview, setImagePreview] = useState('');
+  const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
 
   const watchedTitle = watch('title') || '';
   const watchedDescription = watch('description') || '';
   const watchedCategory = watch('category') || '';
+  const watchedAuthor = watch('author') || '';
+  const watchedLanguage = watch('language') || '';
+  const watchedFormat = watch('format') || '';
   const watchedSeoTitle = watch('seoTitle') || '';
   const watchedMetaDescription = watch('metaDescription') || '';
+  const watchedKeywords = watch('keywords') || '';
+  const watchedOgTitle = watch('ogTitle') || '';
+  const watchedOgDescription = watch('ogDescription') || '';
   const watchedNewPrice = Number(watch('newPrice') || 0);
   const watchedOldPrice = Number(watch('oldPrice') || 0);
   const watchedTrending = Boolean(watch('trending'));
+  const isSaving = isLoading || isGeneratingSeo;
+  const hasSeoReview = Boolean(
+    watchedSeoTitle.trim() ||
+      watchedMetaDescription.trim() ||
+      watchedKeywords.trim() ||
+      watchedOgTitle.trim() ||
+      watchedOgDescription.trim()
+  );
 
   const discountRate = useMemo(() => {
     if (watchedOldPrice <= 0 || watchedNewPrice <= 0 || watchedOldPrice <= watchedNewPrice) {
@@ -54,11 +89,15 @@ const AddBook = () => {
         done: Boolean(watchedTitle.trim()) && Boolean(watchedDescription.trim()) && Boolean(watchedCategory),
       },
       {
+        label: 'Book metadata',
+        done: Boolean(watchedAuthor.trim()) && Boolean(watchedLanguage) && Boolean(watchedFormat),
+      },
+      {
         label: 'Price setup',
         done: watchedOldPrice > 0 && watchedNewPrice > 0 && watchedOldPrice >= watchedNewPrice,
       },
       {
-        label: 'SEO metadata',
+        label: 'SEO review',
         done: Boolean(watchedSeoTitle.trim()) && Boolean(watchedMetaDescription.trim()),
       },
       {
@@ -68,8 +107,11 @@ const AddBook = () => {
     ],
     [
       imagePreview,
+      watchedAuthor,
       watchedCategory,
       watchedDescription,
+      watchedFormat,
+      watchedLanguage,
       watchedMetaDescription,
       watchedNewPrice,
       watchedOldPrice,
@@ -83,6 +125,88 @@ const AddBook = () => {
     setImageFileName('');
     setImageDataUrl('');
     setImagePreview('');
+  };
+
+  const generateSeoTags = async ({ data, oldPrice, newPrice }) => {
+    const product = {
+      title: data.title || '',
+      name: data.title || '',
+      author: data.author || data.brand || '',
+      brand: data.brand || data.author || '',
+      genre: data.category || '',
+      category: data.category || '',
+      description: data.description || '',
+      price: newPrice,
+      oldPrice,
+      newPrice,
+      isbn: data.isbn || '',
+      publisher: data.publisher || '',
+      language: data.language || '',
+      format: data.format || '',
+    };
+
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${getBaseUrl()}/api/ai/seo-tags`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ product }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result?.message || 'Failed to generate SEO tags.');
+    }
+
+    const seo = result?.seo || {};
+    return {
+      seoTitle: seo.metaTitle || '',
+      metaDescription: seo.metaDescription || '',
+      keywords: seo.keywords || '',
+      ogTitle: seo.ogTitle || '',
+      ogDescription: seo.ogDescription || '',
+    };
+  };
+
+  const applySeoFields = (seoFields) => {
+    setValue('seoTitle', seoFields.seoTitle || '', { shouldDirty: true });
+    setValue('metaDescription', seoFields.metaDescription || '', { shouldDirty: true });
+    setValue('keywords', seoFields.keywords || '', { shouldDirty: true });
+    setValue('ogTitle', seoFields.ogTitle || '', { shouldDirty: true });
+    setValue('ogDescription', seoFields.ogDescription || '', { shouldDirty: true });
+  };
+
+  const handleGenerateSeoReview = async () => {
+    const data = {
+      title: watchedTitle,
+      description: watchedDescription,
+      category: watchedCategory,
+      author: watchedAuthor,
+      isbn: watch('isbn') || '',
+      publisher: watch('publisher') || '',
+      language: watchedLanguage,
+      format: watchedFormat,
+    };
+    const oldPrice = watchedOldPrice;
+    const newPrice = watchedNewPrice;
+
+    if (!data.title.trim() || !data.description.trim() || !data.category) {
+      alert('Please add title, category, and description before generating SEO.');
+      return;
+    }
+
+    setIsGeneratingSeo(true);
+    try {
+      const seoFields = await generateSeoTags({ data, oldPrice, newPrice });
+      applySeoFields(seoFields);
+    } catch (error) {
+      console.error(error);
+      alert(error?.message || 'Failed to generate SEO tags.');
+    } finally {
+      setIsGeneratingSeo(false);
+    }
   };
 
   const onSubmit = async (data) => {
@@ -104,20 +228,46 @@ const AddBook = () => {
       return;
     }
 
-    const newBookData = {
-      ...data,
-      trending: !!data.trending,
-      oldPrice,
-      newPrice,
-      slug: data.slug || '',
-      coverImage: imageDataUrl || 'book-1.png',
-    };
+    const hasCompleteSeo =
+      Boolean(data.seoTitle?.trim()) &&
+      Boolean(data.metaDescription?.trim()) &&
+      Boolean(data.keywords?.trim()) &&
+      Boolean(data.ogTitle?.trim()) &&
+      Boolean(data.ogDescription?.trim());
 
+    setIsGeneratingSeo(!hasCompleteSeo);
     try {
+      const generatedSeoFields = hasCompleteSeo ? {} : await generateSeoTags({ data, oldPrice, newPrice });
+      const seoFields = {
+        ...generatedSeoFields,
+        ...(data.seoTitle?.trim() ? { seoTitle: data.seoTitle } : {}),
+        ...(data.metaDescription?.trim() ? { metaDescription: data.metaDescription } : {}),
+        ...(data.keywords?.trim() ? { keywords: data.keywords } : {}),
+        ...(data.ogTitle?.trim() ? { ogTitle: data.ogTitle } : {}),
+        ...(data.ogDescription?.trim() ? { ogDescription: data.ogDescription } : {}),
+      };
+      const finalSeoFields = hasCompleteSeo
+        ? {
+            seoTitle: data.seoTitle || '',
+            metaDescription: data.metaDescription || '',
+            keywords: data.keywords || '',
+            ogTitle: data.ogTitle || '',
+            ogDescription: data.ogDescription || '',
+          }
+        : seoFields;
+      const newBookData = {
+        ...data,
+        ...finalSeoFields,
+        trending: !!data.trending,
+        oldPrice,
+        newPrice,
+        coverImage: imageDataUrl || 'book-1.png',
+      };
+
       await addBook(newBookData).unwrap();
       Swal.fire({
         title: 'Book added',
-        text: 'Your book is uploaded successfully!',
+        text: 'Your book is uploaded successfully with AI-generated SEO metadata.',
         icon: 'success',
         confirmButtonColor: '#0f172a',
         confirmButtonText: 'Continue',
@@ -125,7 +275,9 @@ const AddBook = () => {
       handleResetForm();
     } catch (error) {
       console.error(error);
-      alert('Failed to add book. Please try again.');
+      alert(error?.message || 'Failed to add book. Please try again.');
+    } finally {
+      setIsGeneratingSeo(false);
     }
   };
 
@@ -155,7 +307,7 @@ const AddBook = () => {
           <p className="text-xs uppercase tracking-[0.16em] text-slate-300">Catalog Studio</p>
           <h2 className="mt-2 text-2xl font-semibold">Add New Product</h2>
           <p className="mt-2 text-sm text-slate-200 max-w-2xl">
-            Publish storefront-ready books with structured details, SEO metadata, and pricing control.
+            Publish storefront-ready books with structured details, pricing, and cover control.
           </p>
         </div>
       </section>
@@ -184,6 +336,51 @@ const AddBook = () => {
                 registerOptions={{ required: 'Category is required.' }}
                 error={errors.category}
               />
+
+              <InputField
+                label="Author"
+                name="author"
+                placeholder="James Clear"
+                register={register}
+                registerOptions={{ required: 'Author is required.' }}
+                error={errors.author}
+              />
+
+              <InputField
+                label="ISBN"
+                name="isbn"
+                placeholder="9780735211292"
+                register={register}
+                registerOptions={{}}
+                error={errors.isbn}
+              />
+
+              <SelectField
+                label="Language"
+                name="language"
+                options={LANGUAGE_OPTIONS}
+                register={register}
+                registerOptions={{ required: 'Language is required.' }}
+                error={errors.language}
+              />
+
+              <SelectField
+                label="Format"
+                name="format"
+                options={FORMAT_OPTIONS}
+                register={register}
+                registerOptions={{ required: 'Format is required.' }}
+                error={errors.format}
+              />
+
+              <InputField
+                label="Publisher"
+                name="publisher"
+                placeholder="Avery"
+                register={register}
+                registerOptions={{}}
+                error={errors.publisher}
+              />
             </div>
 
             <div className="mt-4">
@@ -208,52 +405,6 @@ const AddBook = () => {
                 />
                 Mark as trending on storefront
               </label>
-            </div>
-          </section>
-
-          <section className="card-surface bg-white p-5">
-            <h3 className="text-lg font-semibold text-slate-900">SEO and Discovery</h3>
-            <p className="text-sm text-slate-500 mt-1">Improve discoverability in search and social previews.</p>
-
-            <div className="mt-4 grid md:grid-cols-2 gap-4">
-              <InputField
-                label="SEO Title"
-                name="seoTitle"
-                placeholder="Atomic Habits Book | Build Better Routines"
-                register={register}
-                registerOptions={{}}
-                error={errors.seoTitle}
-              />
-
-              <InputField
-                label="Slug"
-                name="slug"
-                placeholder="atomic-habits"
-                register={register}
-                registerOptions={{}}
-                error={errors.slug}
-              />
-
-              <InputField
-                label="Meta Description"
-                name="metaDescription"
-                placeholder="Practical guide to behavior change and lasting habits."
-                register={register}
-                registerOptions={{}}
-                error={errors.metaDescription}
-                wrapperClassName="md:col-span-2 space-y-1.5"
-              />
-
-              <InputField
-                label="Keywords"
-                name="keywords"
-                placeholder="habits, productivity, self improvement"
-                register={register}
-                registerOptions={{}}
-                error={errors.keywords}
-                helperText="Separate each keyword with commas."
-                wrapperClassName="md:col-span-2 space-y-1.5"
-              />
             </div>
           </section>
 
@@ -304,11 +455,87 @@ const AddBook = () => {
             </div>
           </section>
 
+          <section className="card-surface bg-white p-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900">SEO Review</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Generate tags from the book details, then edit them before saving.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleGenerateSeoReview}
+                disabled={isSaving}
+                className={`${isSaving ? 'admin-btn-disabled' : 'admin-btn-primary'} px-4 py-2`}
+              >
+                {isGeneratingSeo ? 'Generating SEO...' : 'Auto-generate SEO'}
+              </button>
+            </div>
+
+            {!hasSeoReview && (
+              <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                SEO tags will appear here after generation. Saving can also generate missing tags automatically.
+              </div>
+            )}
+
+            <div className="mt-4 grid md:grid-cols-2 gap-4">
+              <InputField
+                label="SEO Title"
+                name="seoTitle"
+                placeholder="Generated search title"
+                register={register}
+                registerOptions={{}}
+                error={errors.seoTitle}
+              />
+
+              <InputField
+                label="OG Title"
+                name="ogTitle"
+                placeholder="Generated social title"
+                register={register}
+                registerOptions={{}}
+                error={errors.ogTitle}
+              />
+
+              <InputField
+                label="Meta Description"
+                name="metaDescription"
+                placeholder="Generated Google description"
+                register={register}
+                registerOptions={{}}
+                error={errors.metaDescription}
+                wrapperClassName="md:col-span-2 space-y-1.5"
+              />
+
+              <InputField
+                label="OG Description"
+                name="ogDescription"
+                placeholder="Generated social description"
+                register={register}
+                registerOptions={{}}
+                error={errors.ogDescription}
+                wrapperClassName="md:col-span-2 space-y-1.5"
+              />
+
+              <InputField
+                label="Keywords"
+                name="keywords"
+                placeholder="Generated keywords"
+                register={register}
+                registerOptions={{}}
+                error={errors.keywords}
+                helperText="Edit comma-separated keywords if needed."
+                wrapperClassName="md:col-span-2 space-y-1.5"
+              />
+            </div>
+          </section>
+
           <div className="flex flex-wrap justify-end gap-3">
             <button
               type="button"
               onClick={handleResetForm}
-              disabled={isLoading}
+              disabled={isSaving}
               className="admin-btn-secondary px-4 py-2"
             >
               Reset
@@ -316,10 +543,10 @@ const AddBook = () => {
 
             <button
               type="submit"
-              disabled={isLoading}
-              className={`${isLoading ? 'admin-btn-disabled' : 'admin-btn-primary'} px-5 py-2`}
+              disabled={isSaving}
+              className={`${isSaving ? 'admin-btn-disabled' : 'admin-btn-primary'} px-5 py-2`}
             >
-              {isLoading ? 'Saving Product...' : 'Save Product'}
+              {isGeneratingSeo ? 'Generating SEO...' : isLoading ? 'Saving Product...' : 'Save Product'}
             </button>
           </div>
         </form>

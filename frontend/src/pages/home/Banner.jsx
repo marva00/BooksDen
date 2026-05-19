@@ -64,22 +64,7 @@ const Banner = () => {
               alt="Featured books on Booksden"
               className="h-full w-full rounded-2xl object-cover"
             />
-          </div>
-
-          <div className="mt-4 grid grid-cols-3 gap-3">
-            <div className="rounded-2xl border border-white/20 bg-white/10 p-3 text-center">
-              <p className="text-xl font-bold text-amber-200">20k+</p>
-              <p className="mt-1 text-xs text-slate-200">Readers</p>
-            </div>
-            <div className="rounded-2xl border border-white/20 bg-white/10 p-3 text-center">
-              <p className="text-xl font-bold text-amber-200">4.9</p>
-              <p className="mt-1 text-xs text-slate-200">User Rating</p>
-            </div>
-            <div className="rounded-2xl border border-white/20 bg-white/10 p-3 text-center">
-              <p className="text-xl font-bold text-amber-200">1k+</p>
-              <p className="mt-1 text-xs text-slate-200">New Titles</p>
-            </div>
-          </div>
+          </div>          
         </div>
       </div>
     </section>

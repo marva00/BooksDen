@@ -10,6 +10,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "../context/AuthContext";
 import { hydrateWishlist } from "../redux/features/wishlist/wishlistSlice";
 import { hydrateCart } from "../redux/features/cart/cartSlice";
+import { useSearchBooksQuery } from "../redux/features/books/booksApi";
+import { getImgUrl } from "../utils/getImgUrl";
 
 const accountNavigation = [
     { name: "Dashboard", href: "/user-dashboard" },
@@ -29,15 +31,29 @@ const Navbar = () => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [searchText, setSearchText] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [isDesktopSearchFocused, setIsDesktopSearchFocused] = useState(false);
+    const [isMobileSearchFocused, setIsMobileSearchFocused] = useState(false);
     const cartItems = useSelector((state) => state.cart.cartItems);
     const wishlistItems = useSelector((state) => state.wishlist.items);
     const dispatch = useDispatch();
     const location = useLocation();
     const navigate = useNavigate();
     const profileMenuRef = useRef(null);
+    const desktopSearchRef = useRef(null);
+    const mobileSearchRef = useRef(null);
 
     const { currentUser, logout } = useAuth();
     const token = localStorage.getItem("token");
+
+    const shouldFetchSuggestions = debouncedSearch.length >= 2;
+    const {
+        data: suggestionBooks = [],
+        isFetching: isSuggestionsLoading,
+    } = useSearchBooksQuery(
+        { search: debouncedSearch, limit: 8 },
+        { skip: !shouldFetchSuggestions }
+    );
 
     useEffect(() => {
         dispatch(hydrateWishlist(currentUser?.id || null));
@@ -50,8 +66,18 @@ const Navbar = () => {
     }, [location.search]);
 
     useEffect(() => {
+        const timer = window.setTimeout(() => {
+            setDebouncedSearch(searchText.trim());
+        }, 260);
+
+        return () => window.clearTimeout(timer);
+    }, [searchText]);
+
+    useEffect(() => {
         setIsDropdownOpen(false);
         setIsMobileMenuOpen(false);
+        setIsDesktopSearchFocused(false);
+        setIsMobileSearchFocused(false);
     }, [location.pathname, location.search, location.hash]);
 
     useEffect(() => {
@@ -65,6 +91,12 @@ const Navbar = () => {
         const handleOutsideClick = (event) => {
             if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
                 setIsDropdownOpen(false);
+            }
+            if (desktopSearchRef.current && !desktopSearchRef.current.contains(event.target)) {
+                setIsDesktopSearchFocused(false);
+            }
+            if (mobileSearchRef.current && !mobileSearchRef.current.contains(event.target)) {
+                setIsMobileSearchFocused(false);
             }
         };
 
@@ -91,11 +123,19 @@ const Navbar = () => {
     const handleSearchSubmit = (event) => {
         event.preventDefault();
         const trimmedSearch = searchText.trim();
+        setIsDesktopSearchFocused(false);
+        setIsMobileSearchFocused(false);
         if (trimmedSearch) {
             navigate(`/?search=${encodeURIComponent(trimmedSearch)}`);
             return;
         }
         navigate("/");
+    };
+
+    const handleSuggestionSelect = () => {
+        setIsDesktopSearchFocused(false);
+        setIsMobileSearchFocused(false);
+        setIsMobileMenuOpen(false);
     };
 
     const scrollToSection = (sectionId) => {
@@ -162,6 +202,84 @@ const Navbar = () => {
         );
     };
 
+    const renderSuggestionRows = () => {
+        if (isSuggestionsLoading) {
+            return (
+                <div className="px-3 py-6 text-center text-sm text-slate-500">Searching books...</div>
+            );
+        }
+
+        if (suggestionBooks.length === 0) {
+            return (
+                <div className="px-3 py-6 text-center text-sm text-slate-500">No matching books found.</div>
+            );
+        }
+
+        return (
+            <div className="max-h-80 overflow-y-auto p-2">
+                {suggestionBooks.map((book, index) => {
+                    const destination = `/books/${book?.slug || book?._id}`;
+                    const coverImage = getImgUrl(book?.coverImage || (book?.images?.[0] ?? "book-1.png"));
+                    return (
+                        <Link
+                            key={book?._id || `${book?.title}-${index}`}
+                            to={destination}
+                            onClick={handleSuggestionSelect}
+                            className="flex items-center gap-3 rounded-xl px-2.5 py-2 transition hover:bg-slate-100"
+                        >
+                            <img
+                                src={coverImage}
+                                alt={book?.title || book?.name || "Book"}
+                                onError={(event) => {
+                                    event.currentTarget.src = "/book-1.png";
+                                }}
+                                className="h-12 w-10 rounded-md border border-slate-200 object-cover"
+                            />
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-slate-800">
+                                    {book?.title || book?.name || "Untitled Book"}
+                                </p>
+                                <p className="mt-0.5 truncate text-xs text-slate-500">
+                                    {(book?.author || book?.brand || "General").toString()} · {(book?.category || "book").toString()}
+                                </p>
+                            </div>
+                            <span className="text-xs font-bold text-slate-700">Rs. {Number(book?.newPrice || 0).toFixed(0)}</span>
+                        </Link>
+                    );
+                })}
+            </div>
+        );
+    };
+
+    const renderSuggestionsPanel = (isMobile = false) => {
+        const showPanel =
+            (isMobile ? isMobileSearchFocused : isDesktopSearchFocused) &&
+            shouldFetchSuggestions;
+
+        if (!showPanel) return null;
+
+        return (
+            <div
+                className={isMobile
+                    ? "mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg"
+                    : "absolute left-0 right-0 top-[calc(100%+0.35rem)] z-50 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+                }
+            >
+                {renderSuggestionRows()}
+
+                <div className="border-t border-slate-200 bg-slate-50 p-2">
+                    <Link
+                        to={`/?search=${encodeURIComponent(searchText.trim())}`}
+                        onClick={handleSuggestionSelect}
+                        className="block rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-200"
+                    >
+                        View all results for "{searchText.trim()}"
+                    </Link>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur-lg shadow-[0_14px_35px_-25px_rgba(15,23,42,0.55)]">
             <nav className="mx-auto flex h-20 max-w-screen-2xl items-center justify-between gap-3 px-5 sm:px-8 lg:px-10">
@@ -183,21 +301,30 @@ const Navbar = () => {
                     </div>
                 </div>
 
-                <form
-                    onSubmit={handleSearchSubmit}
-                    className="hidden flex-1 items-center justify-center px-3 md:flex lg:max-w-md"
-                >
-                    <div className="flex w-full items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 shadow-inner">
-                        <FiSearch className="size-4 text-slate-400" />
-                        <input
-                            type="text"
-                            value={searchText}
-                            onChange={(event) => setSearchText(event.target.value)}
-                            placeholder="Search books, authors, genres..."
-                            className="w-full border-none bg-transparent text-sm text-slate-700 outline-none focus:ring-0"
-                        />
-                    </div>
-                </form>
+                <div ref={desktopSearchRef} className="relative hidden flex-1 items-center justify-center px-3 md:flex lg:max-w-md">
+                    <form onSubmit={handleSearchSubmit} className="w-full">
+                        <div className="flex w-full items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 shadow-inner">
+                            <FiSearch className="size-4 text-slate-400" />
+                            <input
+                                type="text"
+                                value={searchText}
+                                onChange={(event) => setSearchText(event.target.value)}
+                                onFocus={() => setIsDesktopSearchFocused(true)}
+                                placeholder="Search books, authors, genres..."
+                                aria-label="Search books"
+                                className="w-full border-none bg-transparent text-sm text-slate-700 outline-none focus:ring-0"
+                            />
+                            <button
+                                type="submit"
+                                className="!bg-transparent !text-slate-500 hover:!text-slate-800 rounded-full p-1.5"
+                                aria-label="Submit search"
+                            >
+                                <FiSearch className="size-4" />
+                            </button>
+                        </div>
+                    </form>
+                    {renderSuggestionsPanel(false)}
+                </div>
 
                 <div className="relative flex items-center gap-1 sm:gap-2">
                     <Link
@@ -288,18 +415,30 @@ const Navbar = () => {
 
             {isMobileMenuOpen && (
                 <div className="animate-fade-down border-t border-slate-200 bg-white px-5 pb-5 pt-3 sm:px-8 lg:hidden">
-                    <form onSubmit={handleSearchSubmit} className="mb-4">
-                        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                            <FiSearch className="size-4 text-slate-400" />
-                            <input
-                                type="text"
-                                value={searchText}
-                                onChange={(event) => setSearchText(event.target.value)}
-                                placeholder="Search books"
-                                className="w-full border-none bg-transparent text-sm text-slate-700 outline-none focus:ring-0"
-                            />
-                        </div>
-                    </form>
+                    <div ref={mobileSearchRef} className="mb-4">
+                        <form onSubmit={handleSearchSubmit}>
+                            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                                <FiSearch className="size-4 text-slate-400" />
+                                <input
+                                    type="text"
+                                    value={searchText}
+                                    onChange={(event) => setSearchText(event.target.value)}
+                                    onFocus={() => setIsMobileSearchFocused(true)}
+                                    placeholder="Search books"
+                                    aria-label="Search books"
+                                    className="w-full border-none bg-transparent text-sm text-slate-700 outline-none focus:ring-0"
+                                />
+                                <button
+                                    type="submit"
+                                    className="!bg-transparent !text-slate-500 hover:!text-slate-800 rounded-full p-1.5"
+                                    aria-label="Submit search"
+                                >
+                                    <FiSearch className="size-4" />
+                                </button>
+                            </div>
+                        </form>
+                        {renderSuggestionsPanel(true)}
+                    </div>
 
                     <div className="space-y-1">
                         {primaryLinks.map((item) => (

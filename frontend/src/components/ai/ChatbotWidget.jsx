@@ -22,7 +22,7 @@ const ChatbotWidget = () => {
     {
       role: "assistant",
       content:
-        "Hi! I am your Smart E-Commerce Assistant. Ask me to find products with filters like category, price, rating, or brand. I can also answer shipping info, return policy, and payment methods.",
+        "Hi! I am your Smart librarian!! ",
       products: [],
     },
   ]);
@@ -364,6 +364,25 @@ const ChatbotWidget = () => {
                 </div>
               </div>
             )}
+          </div>
+          <div className="px-3 pb-2 pt-1 flex gap-2 overflow-x-auto whitespace-nowrap" style={{ scrollbarWidth: 'none' }}>
+            {["Where is my order?", "Trending books", "Applied coupons?", "Shipping info"].map((q) => (
+              <button
+                key={q}
+                onClick={async () => {
+                  if (isLoading) return;
+                  setInput("");
+                  clearSuggestions();
+                  lastInteractionRef.current = Date.now();
+                  await sendMessage(q, false);
+                }}
+                disabled={isLoading}
+                className="text-[11px] border rounded-full px-3 py-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 transition-colors"
+                type="button"
+              >
+                {q}
+              </button>
+            ))}
           </div>
           <div className="p-3 border-t flex gap-2">
             <div className="relative flex-1">
