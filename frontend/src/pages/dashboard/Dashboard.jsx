@@ -218,22 +218,23 @@ const Dashboard = () => {
           <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Management Dashboard</h2>
         </div>
 
+        {/* PERFECTLY ALIGNED AND SYNCED SEGMENTED TAB WRAPPER */}
         <div className="bg-slate-200 p-1 rounded-xl flex gap-1 shadow-inner">
           <button
             onClick={() => setActiveTab('sales')}
             className={`px-5 py-2.5 text-sm font-bold rounded-lg transition-all duration-200 border-none cursor-pointer ${
-              activeTab === 'sales' ? 'bg-[ #0f172a]' : 'text-slate-600 bg-transparent hover:bg-slate-300/60 hover:text-slate-900'
+              activeTab === 'sales' ? 'text-white' : 'text-slate-600 bg-transparent hover:bg-slate-300/60 hover:text-slate-900'
             }`}
-            style={activeTab === 'sales' ? { backgroundColor: '#0f172a', color: '#ffffff' } : {}}
+            style={activeTab === 'sales' ? { backgroundColor: '#0f172a' } : {}}
           >
             📊 Sales Performance
           </button>
           <button
             onClick={() => setActiveTab('inventory')}
             className={`px-5 py-2.5 text-sm font-bold rounded-lg transition-all duration-200 border-none cursor-pointer ${
-              activeTab === 'inventory' ? 'bg-[ #0f172a]' : 'text-slate-600 bg-transparent hover:bg-slate-300/60 hover:text-slate-900'
+              activeTab === 'inventory' ? 'text-white' : 'text-slate-600 bg-transparent hover:bg-slate-300/60 hover:text-slate-900'
             }`}
-            style={activeTab === 'inventory' ? { backgroundColor: '#0f172a', color: '#ffffff' } : {}}
+            style={activeTab === 'inventory' ? { backgroundColor: '#0f172a' } : {}}
           >
             📦 Inventory Logistics
           </button>
