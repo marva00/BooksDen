@@ -6,6 +6,7 @@ import { useAddBookMutation } from '../../../redux/features/books/booksApi';
 import Swal from 'sweetalert2';
 import { getImgUrl } from '../../../utils/getImgUrl';
 import getBaseUrl from '../../../utils/baseURL';
+import PromotionalScenarioEngine from './PromotionalScenarioEngine';
 
 const CATEGORY_OPTIONS = [
   { value: '', label: 'Choose a category' },
@@ -207,6 +208,10 @@ const AddBook = () => {
     } finally {
       setIsGeneratingSeo(false);
     }
+  };
+
+  const handleApplyForecastPrice = (forecastPrice) => {
+    setValue('newPrice', forecastPrice, { shouldDirty: true, shouldValidate: true });
   };
 
   const onSubmit = async (data) => {
@@ -439,6 +444,14 @@ const AddBook = () => {
                 Discount preview: {discountRate}% off
               </p>
             )}
+
+            <div className="mt-5">
+              <PromotionalScenarioEngine
+                oldPrice={watchedOldPrice}
+                newPrice={watchedNewPrice}
+                onApplyDiscount={handleApplyForecastPrice}
+              />
+            </div>
 
             <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
               <label className="block text-sm font-semibold text-slate-700">Cover Image</label>

@@ -6,10 +6,9 @@ import {
   FiXCircle,
   FiShoppingBag,
   FiCpu,
-  FiPercent,
   FiArrowRight
 } from 'react-icons/fi';
-import { Bar, Line } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -79,13 +78,6 @@ const formatInteger = (val) => Number(val || 0).toLocaleString();
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('sales'); 
   const [salesRange, setSalesRange] = useState('30d');
-  
-  const [showPriceModal, setShowPriceModal] = useState(false);
-  const [testPriceInput, setTestPriceInput] = useState('');
-  const [calculatedDeviation, setCalculatedDeviation] = useState(0);
-  const [simulatedDiscount, setSimulatedDiscount] = useState(20); 
-
-  const currentBasePrice = 850; 
 
   const maxVolume = useMemo(() => Math.max(...MOCK_HEATMAP_DATA.map(d => d.volume)), []);
   const currentSalesSeries = useMemo(() => MOCK_RANGE_SERIES[salesRange] || MOCK_RANGE_SERIES['30d'], [salesRange]);
@@ -97,119 +89,8 @@ const Dashboard = () => {
     };
   }, []);
 
-  const simulationMetrics = useMemo(() => {
-    const discount = parseFloat(simulatedDiscount);
-    const originalPrice = 850;
-    const baseWeeklySales = 40; 
-
-    const elasticityCoefficient = 2.0;
-    const salesMultiplier = 1 + (discount / 100) * elasticityCoefficient;
-    const calculatedUnits = Math.round(baseWeeklySales * salesMultiplier);
-
-    const unitPrice = originalPrice * (1 - discount / 100);
-    const totalRevenue = calculatedUnits * unitPrice;
-    
-    const costOfGoodsPercent = 0.55; 
-    const totalProfit = totalRevenue - (calculatedUnits * (originalPrice * costOfGoodsPercent));
-
-    let status = 'optimal';
-    let message = 'AI Verdict: Perfect elasticity point. Volume expansion cleanly outpaces your markdown reduction.';
-
-    if (discount === 0) {
-      status = 'neutral';
-      message = 'AI Verdict: Standard price points active. Margins secure but seasonal inventory clear rate remains flat.';
-    } else if (discount > 30) {
-      status = 'loss-warning';
-      message = 'AI Warning: Volume threshold reached but discount is too deep. Gross net-margins are collapsing despite high unit turnover.';
-    } else if (discount < 15) {
-      status = 'under-powered';
-      message = 'AI Advisory: Small markdown entry. Not enough user incentive to trigger major customer conversion velocity adjustments.';
-    }
-
-    return {
-      calculatedUnits,
-      unitPrice,
-      totalRevenue,
-      totalProfit,
-      status,
-      message,
-    };
-  }, [simulatedDiscount]);
-
-  const chartDataStructure = useMemo(() => {
-    const modifications = [0, 10, 20, 30, 40, 50];
-    const baseWeeklySales = 40;
-    const originalPrice = 850;
-    const elasticityCoefficient = 2.0;
-
-    const volumeData = modifications.map(d => Math.round(baseWeeklySales * (1 + (d / 100) * elasticityCoefficient)));
-    const grossRevenueData = modifications.map((d, index) => volumeData[index] * (originalPrice * (1 - d / 100)));
-
-    return {
-      labels: modifications.map(d => d === 0 ? 'Base Price' : `-${d}% Disc`),
-      datasets: [
-        {
-          label: 'Estimated Weekly Revenue (PKR)',
-          data: grossRevenueData,
-          borderColor: '#0f172a',
-          backgroundColor: modifications.map(d => d === parseFloat(simulatedDiscount) ? '#38bdf8' : 'rgba(15, 23, 42, 0.1)'),
-          type: 'bar',
-          yAxisID: 'yRevenue',
-          borderRadius: 6,
-        },
-        {
-          label: 'Predicted Sales Volume (Units)',
-          data: volumeData,
-          borderColor: '#38bdf8',
-          backgroundColor: 'transparent',
-          type: 'line',
-          yAxisID: 'yVolume',
-          pointRadius: 5,
-          pointBackgroundColor: '#0f172a',
-          tension: 0.2
-        }
-      ]
-    };
-  }, [simulatedDiscount]);
-
   return (
     <div className="space-y-6 p-6 bg-slate-50 min-h-screen font-sans relative">
-      
-      {/* EXPONENTIAL PRICE INTERCEPTOR MODAL DIALOG */}
-      {showPriceModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full border border-slate-200 shadow-2xl overflow-hidden animate-[scaleIn_0.2s_ease-out]">
-            <div className="p-6 bg-rose-50 border-b border-rose-100 flex items-start gap-4">
-              <div className="p-3 bg-rose-600 rounded-xl text-white shrink-0">
-                <FiAlertTriangle className="w-6 h-6 animate-bounce" />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900">Critical Price Safeguard Triggered</h3>
-                <p className="text-xs font-bold text-rose-700 mt-0.5">Deviation Alert Vector: {calculatedDeviation}%</p>
-              </div>
-            </div>
-            <div className="p-6 space-y-3">
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Warning: You are about to change the product base price valuation by <strong className="text-rose-600 font-extrabold">{calculatedDeviation}%</strong>. This extreme adjustment may significantly impact checkout conversion sales velocity or collapse catalog revenue margins.
-              </p>
-            </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 justify-end">
-              <button 
-                onClick={() => { setShowPriceModal(false); setTestPriceInput(''); }}
-                className="px-4 py-2 rounded-xl text-sm font-bold bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 cursor-pointer transition-all"
-              >
-                Cancel Update
-              </button>
-              <button 
-                onClick={() => { alert('Override confirmed. Persisting system configuration values.'); setShowPriceModal(false); setTestPriceInput(''); }}
-                className="px-4 py-2 rounded-xl text-sm font-bold bg-rose-600 text-white hover:bg-rose-700 shadow-sm cursor-pointer transition-all"
-              >
-                Confirm and Force Update
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Main Console Top Navigation Panel Header */}
       <section className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-5">
@@ -338,95 +219,6 @@ const Dashboard = () => {
                 );
               })}
             </div>
-          </section>
-
-          {/* INTERACTIVE DISCOUNT INTERCEPTOR & PRICE ELASTICITY WORKFLOW ENGINE */}
-          <section className="grid gap-6 lg:grid-cols-3">
-            <article className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs lg:col-span-2">
-              <div>
-                <h4 className="font-bold text-slate-900 text-lg">Interactive Elasticity & Markdown Yield Curves</h4>
-                <p className="text-xs font-medium text-slate-400 mb-4">Simulates the precise transaction growth curve generated by individual price point adjustments.</p>
-              </div>
-              <div className="h-72">
-                <Bar
-                  data={chartDataStructure}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                      yRevenue: { type: 'linear', position: 'left', title: { display: true, text: 'Simulated Gross Revenue (PKR)', font: { weight: 'bold' } } },
-                      yVolume: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Expected Volume Run-Rate (Units)', font: { weight: 'bold' } } },
-                    },
-                    plugins: { legend: { position: 'bottom' } }
-                  }}
-                />
-              </div>
-            </article>
-
-            {/* AI Real-time Discount Diagnostic Simulation Tool Box */}
-            <article className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-[#0ea5e9]">
-                  <FiPercent className="w-5 h-5" />
-                  <h4 className="font-bold text-slate-900 text-base">Promotional Scenario Engine</h4>
-                </div>
-                
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center text-xs font-black text-slate-700">
-                    <span>Set Target Campaign Markdown</span>
-                    <span className="text-sm text-[#0f172a] bg-slate-100 px-2 py-0.5 rounded-md">{simulatedDiscount}% Off</span>
-                  </div>
-                  <input 
-                    type="range" 
-                    min="0" 
-                    max="50" 
-                    step="10"
-                    value={simulatedDiscount} 
-                    onChange={(e) => setSimulatedDiscount(parseInt(e.target.value))}
-                    className="w-full accent-[#0f172a] bg-slate-200 h-2 rounded-lg cursor-pointer appearance-none"
-                  />
-                  <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                    <span>Base Price</span>
-                    <span>-10%</span>
-                    <span>-20%</span>
-                    <span>-30%</span>
-                    <span>-40%</span>
-                    <span>Half Off</span>
-                  </div>
-                </div>
-
-                {/* Algorithmic Predictive Output Interface */}
-                <div className="border border-slate-150 rounded-xl p-4 bg-slate-50 space-y-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <FiCpu className="text-[#0ea5e9]" /> Dynamic Revenue Forecast
-                  </p>
-                  
-                  <div className="grid grid-cols-2 gap-2 text-slate-800">
-                    <div className="bg-white p-2.5 rounded-lg border border-slate-150">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase">New Item Price</span>
-                      <strong className="text-sm font-black text-slate-900">{formatCurrency(simulationMetrics.unitPrice)}</strong>
-                    </div>
-                    <div className="bg-white p-2.5 rounded-lg border border-slate-150">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Est. Unit Sales</span>
-                      <strong className="text-sm font-black text-[#0f172a]">{simulationMetrics.calculatedUnits} books/wk</strong>
-                    </div>
-                  </div>
-
-                  {/* AI Rule Condition Badge Output Wrapper */}
-                  <div className={`p-3 rounded-xl border text-xs font-semibold leading-relaxed transition-all ${
-                    simulationMetrics.status === 'loss-warning' ? 'bg-amber-50 border-amber-200 text-amber-800' :
-                    simulationMetrics.status === 'optimal' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' :
-                    'bg-slate-100 border-slate-200 text-slate-700'
-                  }`}>
-                    {simulationMetrics.message}
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-slate-100/80 p-3 rounded-lg text-[10px] text-slate-400 font-medium leading-normal mt-4">
-                *The system evaluates elastic response vectors automatically using historical volume metrics against stock depletion curves.
-              </div>
-            </article>
           </section>
 
         </div>
