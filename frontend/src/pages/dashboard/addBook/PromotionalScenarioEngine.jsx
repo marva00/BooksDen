@@ -45,29 +45,24 @@ const PromotionalScenarioEngine = ({ oldPrice = 0, newPrice = 0, onApplyDiscount
     const calculatedUnits = Math.round(baseWeeklySales * salesMultiplier);
 
     const unitPrice = basePrice * (1 - discount / 100);
-    const totalRevenue = calculatedUnits * unitPrice;
-    const costOfGoodsPercent = 0.55;
-    const totalProfit = totalRevenue - calculatedUnits * (basePrice * costOfGoodsPercent);
 
     let status = 'optimal';
-    let message = 'AI Verdict: Perfect elasticity point. Volume expansion cleanly outpaces your markdown reduction.';
+    let message = 'Suggested markdown looks balanced for a launch offer. Select it if this matches your campaign plan.';
 
     if (discount === 0) {
       status = 'neutral';
-      message = 'AI Verdict: Standard price points active. Margins secure but seasonal inventory clear rate remains flat.';
+      message = 'No markdown selected. This keeps the product at its actual price.';
     } else if (discount > 30) {
       status = 'loss-warning';
-      message = 'AI Warning: Volume threshold reached but discount is too deep. Gross net-margins are collapsing despite high unit turnover.';
+      message = 'High markdown selected. Use this only for clearance, flash sales, or aggressive launch promotions.';
     } else if (discount < 15) {
       status = 'under-powered';
-      message = 'AI Advisory: Small markdown entry. Not enough user incentive to trigger major customer conversion velocity adjustments.';
+      message = 'Small markdown selected. It is gentle on price but may not create strong shopper urgency.';
     }
 
     return {
       calculatedUnits,
       unitPrice,
-      totalRevenue,
-      totalProfit,
       status,
       message,
     };
@@ -125,7 +120,7 @@ const PromotionalScenarioEngine = ({ oldPrice = 0, newPrice = 0, onApplyDiscount
         <div>
           <h4 className="text-lg font-semibold text-slate-900">Interactive Elasticity & Markdown Yield Curves</h4>
           <p className="mb-4 mt-1 text-sm text-slate-500">
-            Simulate how a markdown may change weekly revenue before saving the product price.
+            Enter the actual product price above, test a markdown here, then apply the estimated sale price.
           </p>
         </div>
         <div className="h-80">
@@ -188,7 +183,7 @@ const PromotionalScenarioEngine = ({ oldPrice = 0, newPrice = 0, onApplyDiscount
 
           <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
             <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">
-              <FiCpu className="text-[#0ea5e9]" /> Dynamic Revenue Forecast
+              <FiCpu className="text-[#0ea5e9]" /> Price Selection Forecast
             </p>
 
             <div className="grid grid-cols-2 gap-2 text-slate-800">
@@ -200,21 +195,6 @@ const PromotionalScenarioEngine = ({ oldPrice = 0, newPrice = 0, onApplyDiscount
                 <span className="block text-[10px] font-bold uppercase text-slate-400">Est. Unit Sales</span>
                 <strong className="text-sm font-black text-[#0f172a]">
                   {simulationMetrics.calculatedUnits} books/wk
-                </strong>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-slate-800">
-              <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-                <span className="block text-[10px] font-bold uppercase text-slate-400">Est. Revenue</span>
-                <strong className="text-sm font-black text-slate-900">
-                  {formatCurrency(simulationMetrics.totalRevenue)}
-                </strong>
-              </div>
-              <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-                <span className="block text-[10px] font-bold uppercase text-slate-400">Est. Profit</span>
-                <strong className="text-sm font-black text-slate-900">
-                  {formatCurrency(simulationMetrics.totalProfit)}
                 </strong>
               </div>
             </div>

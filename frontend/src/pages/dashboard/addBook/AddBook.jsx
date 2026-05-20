@@ -369,16 +369,18 @@ const AddBook = () => {
 
           <section className="card-surface bg-white p-5">
             <h3 className="text-lg font-semibold text-slate-900">Pricing and Cover</h3>
-            <p className="text-sm text-slate-500 mt-1">Configure list price, sale price, and product image.</p>
+            <p className="text-sm text-slate-500 mt-1">
+              Add the actual product price first, then use the promotional engine to autofill the sale price.
+            </p>
 
             <div className="mt-4 grid md:grid-cols-2 gap-4">
               <InputField
-                label="Old Price"
+                label="Actual Price"
                 name="oldPrice"
                 type="number"
                 placeholder="1800"
                 register={register}
-                registerOptions={{ required: 'Old price is required.' }}
+                registerOptions={{ required: 'Actual price is required.' }}
                 error={errors.oldPrice}
               />
 
@@ -390,6 +392,7 @@ const AddBook = () => {
                 register={register}
                 registerOptions={{ required: 'New price is required.' }}
                 error={errors.newPrice}
+                helperText="Use the promotional engine below to apply an estimated markdown price."
               />
             </div>
 
