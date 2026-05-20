@@ -217,6 +217,36 @@ const toClientBook = (productDoc) => {
     };
 };
 
+const toClientBookSummary = (productDoc) => {
+    const full = toClientBook(productDoc);
+    const description =
+        typeof full.description === "string" && full.description.length > 180
+            ? `${full.description.slice(0, 180)}...`
+            : full.description || "";
+
+    return {
+        _id: full._id,
+        id: full.id,
+        title: full.title,
+        name: full.name,
+        slug: full.slug,
+        author: full.author || full.brand || "",
+        brand: full.brand,
+        category: full.category || "",
+        description,
+        newPrice: full.newPrice,
+        price: full.price,
+        oldPrice: full.oldPrice,
+        coverImage: full.coverImage,
+        images: [full.coverImage],
+        stock: full.stock ?? 0,
+        trending: full.trending,
+        rating: full.rating ?? 0,
+        createdAt: full.createdAt,
+        updatedAt: full.updatedAt,
+    };
+};
+
 const generateUniqueSlug = async (name, excludeId = null) => {
     const baseSlug = slugify(name) || "product";
     let candidate = baseSlug;
@@ -341,8 +371,35 @@ const searchProducts = async (req, res) => {
 // get all products
 const getAllProducts =  async (req, res) => {
     try {
-        const products = await Product.find().sort({ createdAt: -1}).lean();
-        const normalizedProducts = products.map((product) => toClientBook(withReadableSlug(product)));
+        const requestedLimit = Number(req.query.limit);
+        const limit = Number.isFinite(requestedLimit)
+            ? Math.min(Math.max(Math.floor(requestedLimit), 1), 120)
+            : 60;
+        const products = await Product.find(
+            {},
+            {
+                title: 1,
+                name: 1,
+                slug: 1,
+                author: 1,
+                brand: 1,
+                category: 1,
+                description: 1,
+                newPrice: 1,
+                price: 1,
+                oldPrice: 1,
+                coverImage: 1,
+                stock: 1,
+                trending: 1,
+                rating: 1,
+                createdAt: 1,
+                updatedAt: 1,
+            }
+        )
+            .sort({ createdAt: -1})
+            .limit(limit)
+            .lean();
+        const normalizedProducts = products.map((product) => toClientBookSummary(withReadableSlug(product)));
         return res.status(200).send(normalizedProducts)
         
     } catch (error) {
