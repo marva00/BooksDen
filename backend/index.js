@@ -12,10 +12,20 @@ let mongoConnectionPromise = null;
 const connectToMongo = async () => {
   if (mongoose.connection.readyState === 1) return mongoose.connection;
   if (!mongoConnectionPromise) {
-    mongoConnectionPromise = mongoose.connect(mongoUri).then((connection) => {
-      console.log("Mongodb connected successfully!");
-      return connection;
-    });
+    mongoConnectionPromise = mongoose
+      .connect(mongoUri, {
+        serverSelectionTimeoutMS: 10000,
+        socketTimeoutMS: 20000,
+        maxPoolSize: 10,
+      })
+      .then((connection) => {
+        console.log("Mongodb connected successfully!");
+        return connection;
+      })
+      .catch((error) => {
+        mongoConnectionPromise = null;
+        throw error;
+      });
   }
   return mongoConnectionPromise;
 };

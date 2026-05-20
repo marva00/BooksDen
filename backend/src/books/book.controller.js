@@ -248,6 +248,17 @@ const ensureProductSlug = async (productDoc) => {
     return productDoc;
 };
 
+const withReadableSlug = (productDoc) => {
+    if (!productDoc) return productDoc;
+    if (productDoc.slug && typeof productDoc.slug === "string" && productDoc.slug.trim()) {
+        return productDoc;
+    }
+    return {
+        ...productDoc,
+        slug: slugify(productDoc.name || productDoc.title || productDoc._id) || String(productDoc._id || ""),
+    };
+};
+
 const createProductFromBody = async (body) => {
     const normalizedPayload = normalizeBookPayload(body, { partial: false });
     const enrichedPayload = enrichBookRecord(normalizedPayload, { forceDescription: true });
@@ -330,12 +341,8 @@ const searchProducts = async (req, res) => {
 // get all products
 const getAllProducts =  async (req, res) => {
     try {
-        const products = await Product.find().sort({ createdAt: -1});
-        const normalizedProducts = [];
-        for (const product of products) {
-            const withSlug = await ensureProductSlug(product);
-            normalizedProducts.push(toClientBook(withSlug));
-        }
+        const products = await Product.find().sort({ createdAt: -1}).lean();
+        const normalizedProducts = products.map((product) => toClientBook(withReadableSlug(product)));
         return res.status(200).send(normalizedProducts)
         
     } catch (error) {
@@ -371,7 +378,17 @@ const getSingleProductBySlug = async (req, res) => {
         if (mongoose.Types.ObjectId.isValid(slug)) {
             bySlugOrId.push({ _id: slug });
         }
-        const product = await Product.findOne({ $or: bySlugOrId });
+        let product = await Product.findOne({ $or: bySlugOrId });
+        if (!product) {
+            const candidates = await Product.find({}, { title: 1, name: 1 }).lean();
+            const match = candidates.find((candidate) => {
+                const candidateSlug = slugify(candidate.name || candidate.title || candidate._id);
+                return candidateSlug === slug;
+            });
+            if (match?._id) {
+                product = await Product.findById(match._id);
+            }
+        }
         if (!product) {
             return res.status(404).send({ message: "Product not Found!" });
         }
