@@ -25,6 +25,7 @@ const primaryLinks = [
     { name: "Top Sellers", href: "/#top-sellers" },
     { name: "Recommended", href: "/#recommended" },
     { name: "Book News", href: "/#book-news" },
+    { name: "Blog", href: "/blog" },
 ];
 
 const Navbar = () => {

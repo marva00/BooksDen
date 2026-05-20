@@ -20,6 +20,7 @@ import UserDashboard from "../pages/dashboard/users/UserDashboard";
 import ManageUsers from "../pages/dashboard/users/ManageUsers";
 import ManageOrders from "../pages/dashboard/orders/ManageOrders";
 import OrderSuccessPage from "../pages/books/OrderSuccessPage";
+import Blog from "../pages/blog/Blog";
 
 const router = createBrowserRouter([
     {
@@ -37,6 +38,10 @@ const router = createBrowserRouter([
         {
             path: "/about",
             element: <div>About</div>
+        },
+        {
+          path: "/blog",
+          element: <Blog/>
         },
         {
           path: "/login",

@@ -8,6 +8,7 @@ const quickLinks = [
   { label: 'Top Sellers', to: '/#top-sellers' },
   { label: 'Recommended', to: '/#recommended' },
   { label: 'Book News', to: '/#book-news' },
+  { label: 'Blog', to: '/blog' },
 ];
 
 const accountLinks = [
