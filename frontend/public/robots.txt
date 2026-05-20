@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://books-den-lmtg.vercel.app/sitemap.xml
