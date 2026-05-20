@@ -4,7 +4,6 @@ import SelectField from './SelectField';
 import { useForm } from 'react-hook-form';
 import { useAddBookMutation } from '../../../redux/features/books/booksApi';
 import Swal from 'sweetalert2';
-import { getImgUrl } from '../../../utils/getImgUrl';
 import getBaseUrl from '../../../utils/baseURL';
 import PromotionalScenarioEngine from './PromotionalScenarioEngine';
 
@@ -35,8 +34,6 @@ const FORMAT_OPTIONS = [
   { value: 'Audiobook', label: 'Audiobook' },
 ];
 
-const formatCurrency = (value) => `Rs. ${Number(value || 0).toLocaleString()}`;
-
 const AddBook = () => {
   const {
     register,
@@ -50,7 +47,6 @@ const AddBook = () => {
   const [addBook, { isLoading }] = useAddBookMutation();
   const [imageFileName, setImageFileName] = useState('');
   const [imageDataUrl, setImageDataUrl] = useState('');
-  const [imagePreview, setImagePreview] = useState('');
   const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
 
   const watchedTitle = watch('title') || '';
@@ -66,7 +62,6 @@ const AddBook = () => {
   const watchedOgDescription = watch('ogDescription') || '';
   const watchedNewPrice = Number(watch('newPrice') || 0);
   const watchedOldPrice = Number(watch('oldPrice') || 0);
-  const watchedTrending = Boolean(watch('trending'));
   const isSaving = isLoading || isGeneratingSeo;
   const hasSeoReview = Boolean(
     watchedSeoTitle.trim() ||
@@ -83,49 +78,10 @@ const AddBook = () => {
     return Math.round(((watchedOldPrice - watchedNewPrice) / watchedOldPrice) * 100);
   }, [watchedOldPrice, watchedNewPrice]);
 
-  const checklistItems = useMemo(
-    () => [
-      {
-        label: 'Product basics',
-        done: Boolean(watchedTitle.trim()) && Boolean(watchedDescription.trim()) && Boolean(watchedCategory),
-      },
-      {
-        label: 'Book metadata',
-        done: Boolean(watchedAuthor.trim()) && Boolean(watchedLanguage) && Boolean(watchedFormat),
-      },
-      {
-        label: 'Price setup',
-        done: watchedOldPrice > 0 && watchedNewPrice > 0 && watchedOldPrice >= watchedNewPrice,
-      },
-      {
-        label: 'SEO review',
-        done: Boolean(watchedSeoTitle.trim()) && Boolean(watchedMetaDescription.trim()),
-      },
-      {
-        label: 'Cover image',
-        done: Boolean(imagePreview),
-      },
-    ],
-    [
-      imagePreview,
-      watchedAuthor,
-      watchedCategory,
-      watchedDescription,
-      watchedFormat,
-      watchedLanguage,
-      watchedMetaDescription,
-      watchedNewPrice,
-      watchedOldPrice,
-      watchedSeoTitle,
-      watchedTitle,
-    ]
-  );
-
   const handleResetForm = () => {
     reset();
     setImageFileName('');
     setImageDataUrl('');
-    setImagePreview('');
   };
 
   const generateSeoTags = async ({ data, oldPrice, newPrice }) => {
@@ -294,14 +250,12 @@ const AddBook = () => {
       reader.onloadend = () => {
         if (typeof reader.result === 'string') {
           setImageDataUrl(reader.result);
-          setImagePreview(reader.result);
         }
       };
       reader.readAsDataURL(file);
     } else {
       setImageFileName('');
       setImageDataUrl('');
-      setImagePreview('');
     }
   };
 
@@ -317,7 +271,7 @@ const AddBook = () => {
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[1.7fr_1fr] items-start">
+      <div className="space-y-6">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <section className="card-surface bg-white p-5">
             <h3 className="text-lg font-semibold text-slate-900">Product Information</h3>
@@ -563,68 +517,6 @@ const AddBook = () => {
             </button>
           </div>
         </form>
-
-        <aside className="space-y-6 xl:sticky xl:top-24">
-          <section className="card-surface bg-white p-5">
-            <h3 className="text-base font-semibold text-slate-900">Publishing Checklist</h3>
-            <p className="text-xs text-slate-500 mt-1">Complete these items before publishing.</p>
-
-            <ul className="mt-4 space-y-2">
-              {checklistItems.map((item) => (
-                <li
-                  key={item.label}
-                  className="flex items-center justify-between rounded-md border border-slate-200 px-3 py-2"
-                >
-                  <span className="text-sm text-slate-700">{item.label}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                      item.done ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                    }`}
-                  >
-                    {item.done ? 'Ready' : 'Pending'}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="card-surface bg-white p-5">
-            <h3 className="text-base font-semibold text-slate-900">Live Preview</h3>
-            <p className="text-xs text-slate-500 mt-1">How this product card may appear to shoppers.</p>
-
-            <div className="mt-4 rounded-lg border border-slate-200 p-3">
-              {imagePreview ? (
-                <img
-                  src={getImgUrl(imagePreview)}
-                  alt="Selected cover preview"
-                  className="h-48 w-full rounded-md object-cover"
-                />
-              ) : (
-                <div className="h-48 w-full rounded-md border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center text-sm text-slate-500">
-                  Cover preview appears here
-                </div>
-              )}
-
-              <div className="mt-3 space-y-1.5">
-                <p className="text-sm font-semibold text-slate-900 line-clamp-2">
-                  {watchedTitle.trim() || 'Product title preview'}
-                </p>
-                <p className="text-xs text-slate-500 capitalize">{watchedCategory || 'Uncategorized'}</p>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-semibold text-slate-900">{formatCurrency(watchedNewPrice)}</span>
-                  {watchedOldPrice > watchedNewPrice && (
-                    <span className="text-xs text-slate-500 line-through">{formatCurrency(watchedOldPrice)}</span>
-                  )}
-                  {watchedTrending && (
-                    <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] font-semibold text-white">
-                      Trending
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </section>
-        </aside>
       </div>
     </div>
   );

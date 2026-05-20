@@ -120,15 +120,15 @@ const PromotionalScenarioEngine = ({ oldPrice = 0, newPrice = 0, onApplyDiscount
   };
 
   return (
-    <section className="grid gap-5 lg:grid-cols-3">
-      <article className="card-surface bg-white p-5 lg:col-span-2">
+    <section className="grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(22rem,1fr)]">
+      <article className="card-surface bg-white p-5">
         <div>
           <h4 className="text-lg font-semibold text-slate-900">Interactive Elasticity & Markdown Yield Curves</h4>
           <p className="mb-4 mt-1 text-sm text-slate-500">
             Simulate how a markdown may change weekly revenue before saving the product price.
           </p>
         </div>
-        <div className="h-72">
+        <div className="h-80">
           <Bar
             data={chartDataStructure}
             options={{
