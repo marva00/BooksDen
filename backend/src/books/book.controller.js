@@ -396,7 +396,7 @@ const getAllProducts =  async (req, res) => {
                 updatedAt: 1,
             }
         )
-            .sort({ createdAt: -1})
+            .sort({ _id: -1})
             .limit(limit)
             .lean();
         const normalizedProducts = products.map((product) => toClientBookSummary(withReadableSlug(product)));
