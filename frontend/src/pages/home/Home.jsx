@@ -8,6 +8,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import SEO from '../../components/SEO';
 import BookCard from '../books/BookCard';
 import { FiSearch, FiX } from 'react-icons/fi';
+import fallbackBooks from '../../data/fallbackBooks';
 
 const TOP_SELLERS_RANGE = { start: 0, end: 8 };
 const RECOMMENDED_RANGE = { start: 8, end: 16 };
@@ -65,7 +66,7 @@ const Home = () => {
   // Make older DB documents safe to render even if some fields are missing.
   const safeBooks = useMemo(
     () =>
-      (books ?? []).map((book) => ({
+      ((books?.length ? books : fallbackBooks) ?? []).map((book) => ({
         ...book,
         title:
           typeof book?.title === 'string' && book.title.trim() ? book.title : (book?.name || 'Untitled Book'),
@@ -143,7 +144,7 @@ const Home = () => {
             </button>
           </div>
 
-          {!isLoading && !isError && (
+          {safeBooks.length > 0 && (
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <article className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
                 <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Matches</p>
@@ -161,13 +162,13 @@ const Home = () => {
           )}
         </section>
 
-        {isLoading ? (
+        {isLoading && books.length > 0 ? (
           <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, index) => (
               <div key={index} className="h-[31rem] animate-pulse rounded-2xl border border-slate-200 bg-slate-100" />
             ))}
           </section>
-        ) : isError ? (
+        ) : isError && safeBooks.length === 0 ? (
           <div className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-6 text-center text-sm font-medium text-rose-700">
             We could not load inventory right now. Please try again.
           </div>
