@@ -32,7 +32,7 @@ const SingleBook = () => {
     const wishlistItems = useSelector((state) => state.wishlist.items);
     const isFavorite = wishlistItems.some((item) => item._id === book?._id);
 
-    const [imageSrc, setImageSrc] = useState('/book-1.png');
+    const [imageSrc, setImageSrc] = useState(getImgUrl('book-1.png'));
 
     const safeTitle = book?.title || book?.name || 'Untitled Book';
     const safeDescription = book?.description || 'No description available for this title right now.';
@@ -73,7 +73,7 @@ const SingleBook = () => {
 
     useEffect(() => {
         const resolvedImage = getImgUrl(book?.coverImage || book?.images?.[0] || 'book-1.png');
-        setImageSrc(resolvedImage || '/book-1.png');
+        setImageSrc(resolvedImage || getImgUrl('book-1.png'));
     }, [book?.coverImage, book?.images]);
 
     useEffect(() => {
@@ -148,7 +148,7 @@ const SingleBook = () => {
                             src={imageSrc}
                             alt={safeTitle}
                             onError={(event) => {
-                                event.currentTarget.src = '/book-1.png';
+                                event.currentTarget.src = getImgUrl('book-1.png');
                             }}
                             className="mx-auto h-[22rem] w-auto max-w-full object-contain sm:h-[30rem]"
                         />
@@ -259,9 +259,9 @@ const SingleBook = () => {
                                         src={getImgUrl(item?.coverImage || item?.images?.[0] || 'book-1.png')}
                                         alt={item?.title || item?.name || 'Book'}
                                         onError={(event) => {
-                                            event.currentTarget.src = '/book-1.png';
+                                            event.currentTarget.src = getImgUrl('book-1.png');
                                         }}
-                                        className="h-44 w-full object-cover transition duration-500 group-hover:scale-105"
+                                        className="h-44 w-full object-contain p-3 transition duration-500 group-hover:scale-[1.03]"
                                     />
                                 </div>
                                 <h3 className="mt-3 line-clamp-2 text-sm font-semibold text-slate-800">

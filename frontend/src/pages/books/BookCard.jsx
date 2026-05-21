@@ -52,13 +52,13 @@ const BookCard = ({book}) => {
                             {isFavorite ? <HiHeart className="size-4 text-rose-500" /> : <HiOutlineHeart className="size-4" />}
                         </button>
 
-                        <Link to={`/books/${book.slug || book._id}`} className="block h-64 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                        <Link to={`/books/${book.slug || book._id}`} className="block h-64 overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-3">
                                 <img
                                         src={imageSrc}
                                         alt={book?.title || book?.name || 'Book cover'}
                                         onClick={() => trackProductClick(bookId)}
                                         onError={() => setImageSrc(fallbackImage)}
-                                        className="h-64 w-full object-cover transition duration-500 group-hover:scale-105"
+                                        className="h-full w-full object-contain transition duration-500 group-hover:scale-[1.03]"
                                 />
                         </Link>
 

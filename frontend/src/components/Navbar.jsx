@@ -232,9 +232,9 @@ const Navbar = () => {
                                 src={coverImage}
                                 alt={book?.title || book?.name || "Book"}
                                 onError={(event) => {
-                                    event.currentTarget.src = "/book-1.png";
+                                    event.currentTarget.src = getImgUrl("book-1.png");
                                 }}
-                                className="h-12 w-10 rounded-md border border-slate-200 object-cover"
+                                className="h-12 w-10 rounded-md border border-slate-200 bg-slate-50 object-contain p-0.5"
                             />
                             <div className="min-w-0 flex-1">
                                 <p className="truncate text-sm font-semibold text-slate-800">

@@ -327,7 +327,7 @@ const CheckoutPage = () => {
                 <img
                   src={getImgUrl(item?.coverImage)}
                   alt={item?.title || 'Book'}
-                  className="h-16 w-12 rounded-md object-cover"
+                  className="h-16 w-12 rounded-md bg-slate-50 object-contain p-1"
                 />
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2 text-sm font-semibold text-slate-900">{item?.title || 'Untitled Book'}</p>

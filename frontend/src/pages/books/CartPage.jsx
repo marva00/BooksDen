@@ -155,7 +155,7 @@ const CartPage = () => {
                                         <img
                                             alt={product?.title || 'Book'}
                                             src={getImgUrl(product?.coverImage)}
-                                            className="h-32 w-full object-cover"
+                                            className="h-32 w-full bg-slate-50 object-contain p-2"
                                         />
                                     </Link>
 
